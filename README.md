@@ -85,3 +85,4 @@ pytest tests/ -v
 - Uses `yt-dlp` for YouTube access — no API key needed.
 - All user data stored in `~/.yt-cli/` as flat JSON (Phase 2).
 - Thumbnails require a terminal with Unicode/sixel support; silently skipped otherwise.
+=======
