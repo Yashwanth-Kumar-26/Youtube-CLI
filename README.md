@@ -27,6 +27,15 @@ sudo apt install mpv chafa
 
 # Arch
 sudo pacman -S mpv chafa
+
+# macOS (Homebrew)
+brew install mpv chafa
+
+# Windows (Scoop)
+scoop install mpv chafa
+
+# Windows (Winget)
+winget install mpv.mpv hpjansson.Chafa
 ```
 
 ## Installation
@@ -90,5 +99,6 @@ pytest tests/ -v
 
 - Uses `yt-dlp` for YouTube access — no API key needed.
 - All user data stored in `~/.yt-cli/` as flat JSON.
-- Thumbnails require a terminal with Unicode support; silently skipped otherwise.
-- In Audio mode, `mpv` runs with the `--no-video` flag to save bandwidth.
+- **Cross-Platform**: Works on Linux, macOS, and Windows.
+- **Thumbnails**: Require a terminal with Unicode/ANSI support (like Windows Terminal, iTerm2, or any modern Linux terminal). Silently skipped if tools are missing.
+- **Audio Mode**: In Audio mode, `mpv` runs with the `--no-video` flag to save bandwidth.
