@@ -192,15 +192,23 @@ class YtApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        table = self.query_one(DataTable)
-        table.add_columns("Title", "Channel", "Duration", "Views")
-        self.query_one("#search-bar", Input).focus()
+        with open("debug.txt", "a") as f:
+            f.write("App mounted.\n")
+        try:
+            table = self.query_one(DataTable)
+            table.add_columns("Title", "Channel", "Duration", "Views")
+            self.query_one("#search-bar", Input).focus()
+        except Exception as e:
+            with open("debug.txt", "a") as f:
+                f.write(f"ERROR in on_mount: {e}\n")
 
     # ── Search ────────────────────────────────────────────────────────────────
 
     @on(Input.Submitted, "#search-bar")
     def handle_search(self, event: Input.Submitted) -> None:
         query = event.value.strip()
+        with open("debug.txt", "a") as f:
+            f.write(f"Search submitted: {query}\n")
         if not query:
             return
         self._set_status(f"Searching: {query}…")
@@ -210,32 +218,42 @@ class YtApp(App):
     def _do_search(self, query: str) -> None:
         try:
             results, is_playlist = search.search_youtube(query)
+            with open("debug.txt", "a") as f:
+                f.write(f"Search results: {len(results)}, is_playlist: {is_playlist}\n")
         except Exception as exc:
+            with open("debug.txt", "a") as f:
+                f.write(f"ERROR in _do_search: {exc}\n")
             self.call_from_thread(self._set_status, f"Search error: {exc}")
             return
         self.call_from_thread(self._populate_results, results, is_playlist)
 
     def _populate_results(self, results: list[dict], is_playlist: bool) -> None:
-        self._results = results
-        self._is_playlist_mode = is_playlist
-        if is_playlist:
-            self._autoplay = True
-        
-        table = self.query_one(DataTable)
-        table.clear()
-        if not results:
-            self._set_status("No results found.")
-            return
-        for r in results:
-            table.add_row(
-                r["title"][:60],
-                r["channel"][:30],
-                fmt_duration(r["duration"]),
-                fmt_views(r["views"]),
-            )
-        self._set_status(f"{len(results)} results")
-        table.focus()
-        table.move_cursor(row=0)
+        try:
+            self._results = results
+            self._is_playlist_mode = is_playlist
+            if is_playlist:
+                self._autoplay = True
+            
+            table = self.query_one(DataTable)
+            table.clear()
+            if not results:
+                self._set_status("No results found.")
+                return
+            for r in results:
+                table.add_row(
+                    r["title"][:60],
+                    r["channel"][:30],
+                    fmt_duration(r["duration"]),
+                    fmt_views(r["views"]),
+                )
+            self._set_status(f"{len(results)} results")
+            table.focus()
+            table.move_cursor(row=0)
+            with open("debug.txt", "a") as f:
+                f.write("Results populated and table focused.\n")
+        except Exception as e:
+            with open("debug.txt", "a") as f:
+                f.write(f"ERROR in _populate_results: {e}\n")
 
     # ── Info panel + thumbnail ────────────────────────────────────────────────
 
@@ -267,37 +285,68 @@ class YtApp(App):
     @on(DataTable.RowSelected, "#results")
     def handle_select(self, event: DataTable.RowSelected) -> None:
         idx = event.cursor_row
+        with open("debug.txt", "a") as f:
+            f.write(f"Row selected: {idx}\n")
         if idx < 0 or idx >= len(self._results):
             return
         
         def check_choice(audio_only: bool | None) -> None:
+            with open("debug.txt", "a") as f:
+                f.write(f"Choice modal returned: {audio_only}\n")
             if audio_only is not None:
                 self._audio_only_pref = audio_only
                 self._play_session(idx)
 
-        self.push_screen(PlaybackChoice(), check_choice)
+        try:
+            self.push_screen(PlaybackChoice(), check_choice)
+            with open("debug.txt", "a") as f:
+                f.write("Choice modal pushed.\n")
+        except Exception as e:
+            with open("debug.txt", "a") as f:
+                f.write(f"ERROR in handle_select (push_screen): {e}\n")
 
     @work(thread=False, exclusive=True)
     async def _play_session(self, start_idx: int) -> None:
         import asyncio
+        import traceback
         table = self.query_one(DataTable)
         
-        for i in range(start_idx, len(self._results)):
-            item = self._results[i]
-            
-            # Sync table selection so user knows what is playing
-            self.call_from_thread(table.move_cursor, row=i)
-            self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item['title']}")
-            
-            with self.app.suspend():
-                cmd = ["mpv", "--really-quiet", item["url"]]
-                if self._audio_only_pref:
-                    cmd.append("--no-video")
-                proc = await asyncio.create_subprocess_exec(*cmd)
-                await proc.wait()
-            
-            if not self._autoplay:
-                break
+        with open("debug.txt", "a") as f:
+            f.write(f"\n--- New Session: start_idx={start_idx} ---\n")
+        
+        try:
+            for i in range(start_idx, len(self._results)):
+                item = self._results[i]
+                
+                with open("debug.txt", "a") as f:
+                    f.write(f"Playing item {i}: {item['title']}\n")
+                
+                # Sync table selection so user knows what is playing
+                table.move_cursor(row=i)
+                self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item['title']}")
+                
+                with self.app.suspend():
+                    cmd = ["mpv", "--really-quiet", item["url"]]
+                    if self._audio_only_pref:
+                        cmd.append("--no-video")
+                    
+                    with open("debug.txt", "a") as f:
+                        f.write(f"Running cmd: {' '.join(cmd)}\n")
+                    
+                    proc = await asyncio.create_subprocess_exec(*cmd)
+                    await proc.wait()
+                    
+                    with open("debug.txt", "a") as f:
+                        f.write(f"mpv finished with exit code {proc.returncode}\n")
+                
+                if not self._autoplay:
+                    with open("debug.txt", "a") as f:
+                        f.write("Autoplay is OFF, breaking loop.\n")
+                    break
+        except Exception as e:
+            with open("debug.txt", "a") as f:
+                f.write(f"ERROR in _play_session: {e}\n")
+                f.write(traceback.format_exc())
                 
         self._set_status("Finished playback session")
 
