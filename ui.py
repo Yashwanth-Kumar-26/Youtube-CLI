@@ -307,12 +307,12 @@ class YtApp(App):
 
     @work(thread=False, exclusive=True)
     async def _play_session(self, start_idx: int) -> None:
-        import asyncio
+        import subprocess
         import traceback
         table = self.query_one(DataTable)
         
         with open("debug.txt", "a") as f:
-            f.write(f"\n--- New Session: start_idx={start_idx} ---\n")
+            f.write(f"\n--- Main-loop Session: start_idx={start_idx} ---\n")
         
         try:
             for i in range(start_idx, len(self._results)):
@@ -333,11 +333,11 @@ class YtApp(App):
                     with open("debug.txt", "a") as f:
                         f.write(f"Running cmd: {' '.join(cmd)}\n")
                     
-                    proc = await asyncio.create_subprocess_exec(*cmd)
-                    await proc.wait()
+                    # Blocking call during suspension on main thread
+                    result = subprocess.run(cmd)
                     
                     with open("debug.txt", "a") as f:
-                        f.write(f"mpv finished with exit code {proc.returncode}\n")
+                        f.write(f"mpv finished with exit code {result.returncode}\n")
                 
                 if not self._autoplay:
                     with open("debug.txt", "a") as f:
