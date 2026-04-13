@@ -35,7 +35,7 @@ brew install mpv chafa
 scoop install mpv chafa
 
 # Windows (Winget - Under Development)
-winget install mpv.mpv hpjansson.Chafa
+winget install shinchiro.mpv Chafa
 
 ```
 

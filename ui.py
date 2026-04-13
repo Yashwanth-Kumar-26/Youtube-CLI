@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import shutil
 import sys
 from typing import ClassVar
 
@@ -305,47 +307,81 @@ class YtApp(App):
             with open("debug.txt", "a") as f:
                 f.write(f"ERROR in handle_select (push_screen): {e}\n")
 
+    def _find_tool(self, name: str) -> str | None:
+        """Find an executable in PATH or common Windows locations."""
+        if shutil.which(name):
+            return name
+            
+        if sys.platform == "win32":
+            # Search common Windows paths
+            user_profile = os.environ.get("USERPROFILE", "")
+            local_appdata = os.environ.get("LOCALAPPDATA", "")
+            
+            paths = [
+                os.path.join(user_profile, "scoop", "shims"),
+                os.path.join(local_appdata, "Microsoft", "WinGet", "Packages"),
+                os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "mpv"),
+                os.path.join(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"), "mpv"),
+            ]
+            
+            for p in paths:
+                exe = os.path.join(p, f"{name}.exe")
+                if os.path.exists(exe):
+                    return exe
+        return None
+
     @work(thread=False, exclusive=True)
     async def _play_session(self, start_idx: int) -> None:
         import subprocess
         import traceback
-        table = self.query_one(DataTable)
         
         with open("debug.txt", "a") as f:
-            f.write(f"\n--- Main-loop Session: start_idx={start_idx} ---\n")
-        
+            f.write(f"\n--- Main-loop Session Call: idx={start_idx} ---\n")
+            
         try:
+            table = self.query_one(DataTable)
+            mpv_path = self._find_tool("mpv")
+            ytdl_path = self._find_tool("yt-dlp")
+            
+            with open("debug.txt", "a") as f:
+                f.write(f"Discovery: mpv={mpv_path}, ytdl={ytdl_path}\n")
+            
+            if not mpv_path:
+                self._set_status("[bold red]Error: mpv not found.[/]")
+                with open("debug.txt", "a") as f:
+                    f.write("ERROR: mpv not found in PATH or common locations.\n")
+                return
+            
             for i in range(start_idx, len(self._results)):
                 item = self._results[i]
-                
                 with open("debug.txt", "a") as f:
-                    f.write(f"Playing item {i}: {item['title']}\n")
+                    f.write(f"Attempting to play item {i}: {item['title']}\n")
                 
-                # Sync table selection so user knows what is playing
                 table.move_cursor(row=i)
                 self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item['title']}")
                 
                 with self.app.suspend():
-                    cmd = ["mpv", "--really-quiet", item["url"]]
+                    cmd = [mpv_path, "--really-quiet"]
+                    if ytdl_path:
+                        cmd.append(f"--script-opts=ytdl_hook-ytdl_path={ytdl_path}")
+                    cmd.append(item["url"])
                     if self._audio_only_pref:
                         cmd.append("--no-video")
                     
                     with open("debug.txt", "a") as f:
-                        f.write(f"Running cmd: {' '.join(cmd)}\n")
+                        f.write(f"Exec: {' '.join(cmd)}\n")
                     
-                    # Blocking call during suspension on main thread
                     result = subprocess.run(cmd)
                     
                     with open("debug.txt", "a") as f:
-                        f.write(f"mpv finished with exit code {result.returncode}\n")
+                        f.write(f"Finished: exit_code={result.returncode}\n")
                 
                 if not self._autoplay:
-                    with open("debug.txt", "a") as f:
-                        f.write("Autoplay is OFF, breaking loop.\n")
                     break
+                    
         except Exception as e:
             with open("debug.txt", "a") as f:
-                f.write(f"ERROR in _play_session: {e}\n")
+                f.write(f"FATAL ERROR in _play_session: {e}\n")
                 f.write(traceback.format_exc())
                 
         self._set_status("Finished playback session")

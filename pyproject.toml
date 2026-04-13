@@ -19,3 +19,8 @@ yt-cli = "main:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["*.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["scratch"]
+asyncio_mode = "auto"

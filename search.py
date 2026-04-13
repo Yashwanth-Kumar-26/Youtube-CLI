@@ -26,7 +26,10 @@ def search_youtube(query: str, max_results: int = 15) -> tuple[list[dict], bool]
         except Exception:
             return [], False
 
-    is_playlist = info.get("_type") == "playlist"
+        if not info:
+            return [], False
+
+        is_playlist = info.get("_type") == "playlist"
     
     if "entries" in info:
         entries = info["entries"]

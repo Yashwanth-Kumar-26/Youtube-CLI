@@ -37,25 +37,29 @@ def _mock_ydl(entries):
 @patch("search.yt_dlp.YoutubeDL")
 def test_search_returns_results(mock_cls):
     mock_cls.return_value = _mock_ydl(FAKE_ENTRIES)
-    results = search_youtube("linux tips", max_results=2)
+    results, is_playlist = search_youtube("linux tips", max_results=2)
     assert len(results) == 2
     assert results[0]["id"] == "abc123"
     assert results[0]["title"] == "Linux Tips"
     assert results[0]["url"] == "https://www.youtube.com/watch?v=abc123"
     assert results[1]["channel"] == "DevChannel"
+    assert is_playlist is False
 
 
 @patch("search.yt_dlp.YoutubeDL")
 def test_search_skips_none_entries(mock_cls):
     mock_cls.return_value = _mock_ydl([None, FAKE_ENTRIES[0]])
-    results = search_youtube("test")
+    results, is_playlist = search_youtube("test")
     assert len(results) == 1
+    assert is_playlist is False
 
 
 @patch("search.yt_dlp.YoutubeDL")
 def test_search_empty(mock_cls):
     mock_cls.return_value = _mock_ydl([])
-    assert search_youtube("nothing") == []
+    results, is_playlist = search_youtube("nothing")
+    assert results == []
+    assert is_playlist is False
 
 
 @patch("search.yt_dlp.YoutubeDL")
@@ -63,4 +67,7 @@ def test_search_none_info(mock_cls):
     ydl = _mock_ydl([])
     ydl.extract_info.return_value = None
     mock_cls.return_value = ydl
-    assert search_youtube("test") == []
+    results, is_playlist = search_youtube("test")
+    assert results == []
+    assert is_playlist is False
+
