@@ -47,12 +47,6 @@ cd Youtube-CLI
 pip install -e .
 ```
 
-## Usage
-
-```bash
-yt-cli
-```
-
 The TUI launches with the search bar focused. Start typing or paste a URL and press **Enter**.
 
 ## Keyboard Reference
