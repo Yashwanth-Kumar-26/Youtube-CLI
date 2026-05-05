@@ -5,6 +5,8 @@ A lightweight, terminal-native YouTube client. Search, preview, and stream video
 ## Features
 
 - **Universal Search**: Type keywords or paste direct YouTube video and playlist URLs.
+- **Side Navigation**: Switch between Search and History views.
+- **Persistent History**: Automatically saves your searches and watched videos.
 - **Playlist Support**: Automatically extracts and lists all videos from pasted playlist links.
 - **Playback Options**: Choose between Video and Audio-only mode for every session.
 - **Autoplay**: Automatically advances to the next video in the list (especially for playlists).
@@ -60,6 +62,8 @@ The TUI launches with the search bar focused. Start typing or paste a URL and pr
 | Key | Action |
 |-----|--------|
 | `/` | Focus search bar |
+| `s` | Switch to Search tab |
+| `h` | Switch to History tab |
 | `a` | Toggle Autoplay (ON/OFF) |
 | `↑ / ↓` | Navigate results |
 | `Enter` | Choose mode and play selected video |

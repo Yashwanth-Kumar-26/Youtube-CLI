@@ -1,33 +1,49 @@
-"""mpv subprocess wrapper."""
-from __future__ import annotations
-
+import os
 import shutil
 import subprocess
 import sys
 
 
-def _check_mpv() -> None:
-    if not shutil.which("mpv"):
-        distro_hint = (
-            "  Fedora : sudo dnf install mpv\n"
-            "  Ubuntu : sudo apt install mpv\n"
-            "  Arch   : sudo pacman -S mpv"
-        )
-        print(f"[yt-cli] mpv not found. Install it first:\n{distro_hint}", file=sys.stderr)
-        sys.exit(1)
+def find_tool(name: str) -> str | None:
+    """Find an executable in PATH or common Windows locations."""
+    if shutil.which(name):
+        return name
+
+    if sys.platform == "win32":
+        # Search common Windows paths
+        user_profile = os.environ.get("USERPROFILE", "")
+        local_appdata = os.environ.get("LOCALAPPDATA", "")
+
+        paths = [
+            os.path.join(user_profile, "scoop", "shims"),
+            os.path.join(local_appdata, "Microsoft", "WinGet", "Packages"),
+            os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "mpv"),
+            os.path.join(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"), "mpv"),
+        ]
+
+        for p in paths:
+            exe = os.path.join(p, f"{name}.exe")
+            if os.path.exists(exe):
+                return exe
+    return None
 
 
-def play(url: str, audio_only: bool = False) -> None:
+def play(url: str, audio_only: bool = False, ytdl_path: str | None = None) -> int:
     """Spawn mpv for *url*, blocking until the user quits.
-
-    Raises RuntimeError if mpv exits with a non-zero code (other than
-    the normal user-quit code 4).
+    Returns the exit code of mpv.
     """
-    _check_mpv()
-    cmd = ["mpv", "--really-quiet", url]
+    mpv_path = find_tool("mpv")
+    if not mpv_path:
+        raise RuntimeError("mpv not found")
+
+    cmd = [mpv_path, "--really-quiet"]
+    if ytdl_path:
+        cmd.append(f"--script-opts=ytdl_hook-ytdl_path={ytdl_path}")
+    
+    cmd.append(url)
+    
     if audio_only:
         cmd.append("--no-video")
+
     result = subprocess.run(cmd)
-    # mpv exit code 4 = user quit (q key) — treat as success
-    if result.returncode not in (0, 4):
-        raise RuntimeError(f"mpv exited with code {result.returncode}")
+    return result.returncode

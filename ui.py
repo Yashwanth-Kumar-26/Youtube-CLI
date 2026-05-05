@@ -10,7 +10,7 @@ from typing import ClassVar
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, Container, ContentSwitcher
 from textual.screen import ModalScreen
 from textual.widgets import (
     DataTable,
@@ -20,12 +20,17 @@ from textual.widgets import (
     Label,
     Static,
     Button,
+    LoadingIndicator,
+    TabbedContent,
+    TabPane,
+    ListItem,
+    ListView,
 )
 
 import player
 import search
 import thumbnail
-from utils import fmt_duration, fmt_views
+from utils import fmt_duration, fmt_views, HistoryManager
 
 LOGO = """\
  ██╗   ██╗████████╗      ██████╗██╗     ██╗
@@ -82,89 +87,146 @@ class PlaybackChoice(ModalScreen[bool]):
 
 class YtApp(App):
     CSS = """
-    Screen { background: $surface; }
+    $accent-primary: #89b4fa;
+    $accent-secondary: #f5c2e7;
+    $bg-main: #1e1e2e;
+    $bg-sidebar: #181825;
+    $fg-main: #cdd6f4;
+    $fg-muted: #7f849c;
 
-    #logo { color: $accent; text-align: center; padding: 1 0 0 0; }
+    Screen {
+        background: $bg-main;
+        color: $fg-main;
+    }
 
-    #search-bar { dock: top; height: 3; padding: 0 1; }
+    #sidebar {
+        width: 25;
+        background: $bg-sidebar;
+        border-right: solid #313244;
+        dock: left;
+    }
 
-    #main { height: 1fr; }
+    #sidebar-logo {
+        height: 6;
+        content-align: center middle;
+        color: $accent-primary;
+        text-style: bold;
+        border-bottom: solid #313244;
+    }
 
-    #results { width: 2fr; border: solid $primary; }
+    #nav-list {
+        background: transparent;
+    }
+
+    #nav-list ListItem {
+        padding: 1 2;
+    }
+
+    #nav-list ListItem:hover {
+        background: #313244;
+    }
+
+    #nav-list ListItem.--highlight {
+        background: $accent-primary;
+        color: $bg-main;
+        text-style: bold;
+    }
+
+    #content {
+        height: 1fr;
+    }
+
+    #search-view, #history-view {
+        height: 1fr;
+    }
+
+    #search-header {
+        height: 3;
+        padding: 0 1;
+        margin-bottom: 1;
+    }
+
+    #results-container {
+        height: 1fr;
+    }
+
+    #results {
+        border: none;
+        background: transparent;
+    }
 
     #info-panel {
-        width: 1fr;
-        border-left: solid $primary;
+        width: 40;
+        border-left: solid #313244;
         padding: 1 2;
-        overflow-y: auto;
+        background: $bg-sidebar;
     }
 
     #thumb {
-        height: 18;
+        height: 15;
         width: 100%;
         margin-bottom: 1;
-        border: round $accent;
-        overflow: hidden;
+        border: solid $accent-primary;
+        content-align: center middle;
     }
 
     #info-title {
         text-style: bold;
-        margin-bottom: 1;
-    }
-
-    #info-meta {
+        color: $accent-secondary;
         margin-bottom: 1;
     }
 
     #status {
         dock: bottom;
         height: 1;
-        background: $primary;
-        color: $text;
+        background: $accent-primary;
+        color: $bg-main;
         padding: 0 1;
+        text-style: bold;
+    }
+
+    #loading-overlay {
+        width: 100%;
+        height: 100%;
+        content-align: center middle;
+        background: rgba(30, 30, 46, 0.7);
+        display: none;
+    }
+
+    #loading-overlay.visible {
+        display: block;
     }
 
     HelpScreen > Static {
-        background: $surface;
-        border: double $accent;
+        background: $bg-sidebar;
+        border: double $accent-primary;
         width: 60;
         height: auto;
-        margin: 4 8;
+        padding: 1 2;
     }
 
     #choice-dialog {
-        background: $surface;
-        border: thick $primary;
+        background: $bg-sidebar;
+        border: thick $accent-primary;
         width: 40;
         height: auto;
         padding: 1 2;
-        content-align: center middle;
     }
 
-    #choice-title {
+    .section-title {
         text-style: bold;
-        margin-bottom: 1;
+        color: $accent-primary;
+        padding: 1 2;
+        background: #313244;
+        width: 100%;
     }
-
-    #choice-buttons {
-        height: auto;
-        align: center middle;
-        margin-bottom: 1;
-    }
-
-    #choice-buttons Button {
-        margin: 0 1;
-    }
-
-    #choice-hint {
-        color: $text-muted;
-    }
-
     """
 
     BINDINGS: ClassVar = [
         Binding("/", "focus_search", "Search", show=True),
         Binding("a", "toggle_autoplay", "Autoplay", show=True),
+        Binding("h", "switch_view('history')", "History", show=True),
+        Binding("s", "switch_view('search')", "Search Tab", show=True),
         Binding("q", "quit", "Quit", show=True),
         Binding("?", "help", "Help", show=True),
     ]
@@ -181,38 +243,60 @@ class YtApp(App):
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-        yield Static(LOGO, id="logo")
-        yield Input(placeholder="Search YouTube…  (press / to focus)", id="search-bar")
-        with Horizontal(id="main"):
-            yield DataTable(id="results", cursor_type="row", zebra_stripes=True)
-            with Vertical(id="info-panel"):
-                yield Static("", id="thumb")
-                yield Label("Select a video to preview", id="info-title")
-                yield Label("", id="info-meta")
+        yield Header()
+        with Horizontal():
+            with Vertical(id="sidebar"):
+                yield Static("YT-CLI", id="sidebar-logo")
+                with ListView(id="nav-list"):
+                    yield ListItem(Label("🔍 Search"), id="nav-search")
+                    yield ListItem(Label("📜 History"), id="nav-history")
+            
+            with Vertical(id="content"):
+                with ContentSwitcher(initial="search"):
+                    with Vertical(id="search"):
+                        yield Input(placeholder="Search YouTube…", id="search-bar")
+                        with Horizontal(id="results-container"):
+                            yield DataTable(id="results", cursor_type="row", zebra_stripes=True)
+                            with Vertical(id="info-panel"):
+                                yield Static("No Preview", id="thumb")
+                                yield Label("Select a video", id="info-title")
+                                yield Label("", id="info-meta")
+                        with Container(id="loading-overlay"):
+                            yield LoadingIndicator()
+                    
+                    with Vertical(id="history"):
+                        yield Label("Search History", classes="section-title")
+                        yield DataTable(id="history-table", cursor_type="row", zebra_stripes=True)
+
         yield Static("Ready", id="status")
         yield Footer()
 
     def on_mount(self) -> None:
-        with open("debug.txt", "a") as f:
-            f.write("App mounted.\n")
-        try:
-            table = self.query_one(DataTable)
-            table.add_columns("Title", "Channel", "Duration", "Views")
-            self.query_one("#search-bar", Input).focus()
-        except Exception as e:
-            with open("debug.txt", "a") as f:
-                f.write(f"ERROR in on_mount: {e}\n")
+        table = self.query_one("#results", DataTable)
+        table.add_columns("Title", "Channel", "Duration", "Views")
+        
+        hist_table = self.query_one("#history-table", DataTable)
+        hist_table.add_columns("Query", "Timestamp")
+        self._refresh_history()
+        
+        self.query_one("#search-bar", Input).focus()
+
+    def _refresh_history(self) -> None:
+        hist_table = self.query_one("#history-table", DataTable)
+        hist_table.clear()
+        for h in HistoryManager.get_search_history():
+            hist_table.add_row(h["query"], h["timestamp"])
 
     # ── Search ────────────────────────────────────────────────────────────────
 
     @on(Input.Submitted, "#search-bar")
     def handle_search(self, event: Input.Submitted) -> None:
         query = event.value.strip()
-        with open("debug.txt", "a") as f:
-            f.write(f"Search submitted: {query}\n")
         if not query:
             return
+        HistoryManager.add_search(query)
+        self._refresh_history()
+        self.query_one("#loading-overlay").add_class("visible")
         self._set_status(f"Searching: {query}…")
         self._do_search(query)
 
@@ -220,42 +304,37 @@ class YtApp(App):
     def _do_search(self, query: str) -> None:
         try:
             results, is_playlist = search.search_youtube(query)
-            with open("debug.txt", "a") as f:
-                f.write(f"Search results: {len(results)}, is_playlist: {is_playlist}\n")
         except Exception as exc:
-            with open("debug.txt", "a") as f:
-                f.write(f"ERROR in _do_search: {exc}\n")
-            self.call_from_thread(self._set_status, f"Search error: {exc}")
+            self.call_from_thread(self._handle_search_error, exc)
             return
         self.call_from_thread(self._populate_results, results, is_playlist)
 
+    def _handle_search_error(self, exc: Exception) -> None:
+        self.query_one("#loading-overlay").remove_class("visible")
+        self._set_status(f"Search error: {exc}")
+
     def _populate_results(self, results: list[dict], is_playlist: bool) -> None:
-        try:
-            self._results = results
-            self._is_playlist_mode = is_playlist
-            if is_playlist:
-                self._autoplay = True
-            
-            table = self.query_one(DataTable)
-            table.clear()
-            if not results:
-                self._set_status("No results found.")
-                return
-            for r in results:
-                table.add_row(
-                    r["title"][:60],
-                    r["channel"][:30],
-                    fmt_duration(r["duration"]),
-                    fmt_views(r["views"]),
-                )
-            self._set_status(f"{len(results)} results")
-            table.focus()
-            table.move_cursor(row=0)
-            with open("debug.txt", "a") as f:
-                f.write("Results populated and table focused.\n")
-        except Exception as e:
-            with open("debug.txt", "a") as f:
-                f.write(f"ERROR in _populate_results: {e}\n")
+        self.query_one("#loading-overlay").remove_class("visible")
+        self._results = results
+        self._is_playlist_mode = is_playlist
+        if is_playlist:
+            self._autoplay = True
+        
+        table = self.query_one("#results", DataTable)
+        table.clear()
+        if not results:
+            self._set_status("No results found.")
+            return
+        for r in results:
+            table.add_row(
+                r["title"][:60],
+                r["channel"][:30],
+                fmt_duration(r["duration"]),
+                fmt_views(r["views"]),
+            )
+        self._set_status(f"{len(results)} results")
+        table.focus()
+        table.move_cursor(row=0)
 
     # ── Info panel + thumbnail ────────────────────────────────────────────────
 
@@ -287,102 +366,40 @@ class YtApp(App):
     @on(DataTable.RowSelected, "#results")
     def handle_select(self, event: DataTable.RowSelected) -> None:
         idx = event.cursor_row
-        with open("debug.txt", "a") as f:
-            f.write(f"Row selected: {idx}\n")
         if idx < 0 or idx >= len(self._results):
             return
         
         def check_choice(audio_only: bool | None) -> None:
-            with open("debug.txt", "a") as f:
-                f.write(f"Choice modal returned: {audio_only}\n")
             if audio_only is not None:
                 self._audio_only_pref = audio_only
                 self._play_session(idx)
 
-        try:
-            self.push_screen(PlaybackChoice(), check_choice)
-            with open("debug.txt", "a") as f:
-                f.write("Choice modal pushed.\n")
-        except Exception as e:
-            with open("debug.txt", "a") as f:
-                f.write(f"ERROR in handle_select (push_screen): {e}\n")
-
-    def _find_tool(self, name: str) -> str | None:
-        """Find an executable in PATH or common Windows locations."""
-        if shutil.which(name):
-            return name
-            
-        if sys.platform == "win32":
-            # Search common Windows paths
-            user_profile = os.environ.get("USERPROFILE", "")
-            local_appdata = os.environ.get("LOCALAPPDATA", "")
-            
-            paths = [
-                os.path.join(user_profile, "scoop", "shims"),
-                os.path.join(local_appdata, "Microsoft", "WinGet", "Packages"),
-                os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "mpv"),
-                os.path.join(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"), "mpv"),
-            ]
-            
-            for p in paths:
-                exe = os.path.join(p, f"{name}.exe")
-                if os.path.exists(exe):
-                    return exe
-        return None
+        self.push_screen(PlaybackChoice(), check_choice)
 
     @work(thread=False, exclusive=True)
     async def _play_session(self, start_idx: int) -> None:
-        import subprocess
-        import traceback
-        
-        with open("debug.txt", "a") as f:
-            f.write(f"\n--- Main-loop Session Call: idx={start_idx} ---\n")
-            
         try:
-            table = self.query_one(DataTable)
-            mpv_path = self._find_tool("mpv")
-            ytdl_path = self._find_tool("yt-dlp")
-            
-            with open("debug.txt", "a") as f:
-                f.write(f"Discovery: mpv={mpv_path}, ytdl={ytdl_path}\n")
-            
-            if not mpv_path:
-                self._set_status("[bold red]Error: mpv not found.[/]")
-                with open("debug.txt", "a") as f:
-                    f.write("ERROR: mpv not found in PATH or common locations.\n")
-                return
+            table = self.query_one("#results", DataTable)
+            ytdl_path = player.find_tool("yt-dlp")
             
             for i in range(start_idx, len(self._results)):
                 item = self._results[i]
-                with open("debug.txt", "a") as f:
-                    f.write(f"Attempting to play item {i}: {item['title']}\n")
-                
                 table.move_cursor(row=i)
                 self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item['title']}")
+                HistoryManager.add_watch(item)
                 
                 with self.app.suspend():
-                    cmd = [mpv_path, "--really-quiet"]
-                    if ytdl_path:
-                        cmd.append(f"--script-opts=ytdl_hook-ytdl_path={ytdl_path}")
-                    cmd.append(item["url"])
-                    if self._audio_only_pref:
-                        cmd.append("--no-video")
-                    
-                    with open("debug.txt", "a") as f:
-                        f.write(f"Exec: {' '.join(cmd)}\n")
-                    
-                    result = subprocess.run(cmd)
-                    
-                    with open("debug.txt", "a") as f:
-                        f.write(f"Finished: exit_code={result.returncode}\n")
+                    exit_code = player.play(
+                        item["url"], 
+                        audio_only=self._audio_only_pref,
+                        ytdl_path=ytdl_path
+                    )
                 
-                if not self._autoplay:
+                if not self._autoplay or exit_code == 4: # 4 is user quit in mpv
                     break
                     
         except Exception as e:
-            with open("debug.txt", "a") as f:
-                f.write(f"FATAL ERROR in _play_session: {e}\n")
-                f.write(traceback.format_exc())
+            self._set_status(f"Playback error: {e}")
                 
         self._set_status("Finished playback session")
 
@@ -394,10 +411,36 @@ class YtApp(App):
         self._set_status(f"Autoplay: {'ON' if self._autoplay else 'OFF'}")
 
     def action_focus_search(self) -> None:
+        self.action_switch_view("search")
         self.query_one("#search-bar", Input).focus()
 
     def action_help(self) -> None:
         self.push_screen(HelpScreen())
+
+    def action_switch_view(self, view: str) -> None:
+        self.query_one(ContentSwitcher).current = view
+        if view == "search":
+            self.query_one("#nav-list").index = 0
+            self.query_one("#search-bar").focus()
+        else:
+            self.query_one("#nav-list").index = 1
+            self.query_one("#history-table").focus()
+            self._refresh_history()
+
+    @on(ListView.Selected, "#nav-list")
+    def handle_nav(self, event: ListView.Selected) -> None:
+        if event.item.id == "nav-search":
+            self.action_switch_view("search")
+        elif event.item.id == "nav-history":
+            self.action_switch_view("history")
+
+    @on(DataTable.RowSelected, "#history-table")
+    def handle_history_select(self, event: DataTable.RowSelected) -> None:
+        row_data = self.query_one("#history-table", DataTable).get_row_at(event.cursor_row)
+        query = row_data[0]
+        self.query_one("#search-bar", Input).value = str(query)
+        self.action_switch_view("search")
+        self.handle_search(Input.Submitted(self.query_one("#search-bar", Input), str(query)))
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
