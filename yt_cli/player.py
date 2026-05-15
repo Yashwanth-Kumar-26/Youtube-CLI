@@ -38,7 +38,7 @@ def play(url: str, audio_only: bool = False, ytdl_path: str | None = None) -> in
 
     cmd = [mpv_path, "--really-quiet"]
     if ytdl_path:
-        cmd.append(f"--script-opts=ytdl_hook-ytdl_path={ytdl_path}")
+        cmd.append(f'--script-opts=ytdl_hook-ytdl_path="{ytdl_path}"')
     
     cmd.append(url)
     

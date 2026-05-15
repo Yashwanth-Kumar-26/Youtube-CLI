@@ -50,12 +50,17 @@ def save_json(path: Path, data: list | dict) -> None:
 # ── History ───────────────────────────────────────────────────────────────────
 
 class HistoryManager:
-    SEARCH_HIST_FILE = DATA_DIR / "search_history.json"
-    WATCH_HIST_FILE = DATA_DIR / "watch_history.json"
+    @classmethod
+    def _search_hist_file(cls) -> Path:
+        return DATA_DIR / "search_history.json"
+
+    @classmethod
+    def _watch_hist_file(cls) -> Path:
+        return DATA_DIR / "watch_history.json"
 
     @classmethod
     def get_search_history(cls) -> list[dict]:
-        return load_json(cls.SEARCH_HIST_FILE)
+        return load_json(cls._search_hist_file())
 
     @classmethod
     def add_search(cls, query: str) -> None:
@@ -67,11 +72,11 @@ class HistoryManager:
             "query": query,
             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         })
-        save_json(cls.SEARCH_HIST_FILE, history[:50]) # Keep last 50
+        save_json(cls._search_hist_file(), history[:50]) # Keep last 50
 
     @classmethod
     def get_watch_history(cls) -> list[dict]:
-        return load_json(cls.WATCH_HIST_FILE)
+        return load_json(cls._watch_hist_file())
 
     @classmethod
     def add_watch(cls, video_data: dict) -> None:
@@ -81,4 +86,4 @@ class HistoryManager:
         history = [h for h in history if h["id"] != video_data["id"]]
         video_data["watched_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         history.insert(0, video_data)
-        save_json(cls.WATCH_HIST_FILE, history[:100]) # Keep last 100
+        save_json(cls._watch_hist_file(), history[:100]) # Keep last 100

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "yt-cli"
 version = "1.0.0"
-description = "Terminal-native YouTube client"
+description = "Terminal-native YouTube client (requires: mpv, chafa, yt-dlp)"
 requires-python = ">=3.10"
 dependencies = [
     "yt-dlp>=2024.1.1",
@@ -14,11 +14,10 @@ dependencies = [
 ]
 
 [project.scripts]
-yt-cli = "main:main"
+yt-cli = "yt_cli:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["*.py"]
+include = ["yt_cli", "yt_cli.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

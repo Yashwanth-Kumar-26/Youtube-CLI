@@ -49,20 +49,26 @@ cd Youtube-CLI
 pip install -e .
 ```
 
+## Usage
+
+```bash
+yt-cli
+```
+
 The TUI launches with the search bar focused. Start typing or paste a URL and press **Enter**.
 
 ## Keyboard Reference
 
 | Key | Action |
 |-----|--------|
+| `F1` | Help screen |
 | `/` | Focus search bar |
 | `s` | Switch to Search tab |
 | `h` | Switch to History tab |
 | `a` | Toggle Autoplay (ON/OFF) |
 | `↑ / ↓` | Navigate results |
 | `Enter` | Choose mode and play selected video |
-| `?` | Help screen |
-| `q` | Quit |
+| `Ctrl+Q` | Quit |
 
 **During mpv playback:**
 
@@ -77,12 +83,14 @@ The TUI launches with the search bar focused. Start typing or paste a URL and pr
 
 ```
 yt-cli/
-├── main.py        # Entry point
-├── search.py      # yt-dlp search and playlist wrapper
-├── player.py      # mpv subprocess handler
-├── thumbnail.py   # chafa thumbnail rendering engine
-├── ui.py          # Textual TUI and state management
-├── utils.py       # Formatting and I/O helpers
+├── yt_cli/        # Package directory
+│   ├── __init__.py   # Package init, exports main()
+│   ├── cli.py        # Entry point logic
+│   ├── search.py     # yt-dlp search and playlist wrapper
+│   ├── player.py     # mpv subprocess handler
+│   ├── thumbnail.py  # chafa thumbnail rendering engine
+│   ├── ui.py         # Textual TUI and state management
+│   └── utils.py      # Formatting and I/O helpers
 ├── tests/         # Unit tests
 └── pyproject.toml # Project metadata and dependencies
 ```

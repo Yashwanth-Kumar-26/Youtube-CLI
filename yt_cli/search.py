@@ -42,6 +42,13 @@ def search_youtube(query: str, max_results: int = 15) -> tuple[list[dict], bool]
             continue
         # For flat extraction, id might be in 'id' or 'url'
         vid_id = e.get("id") or e.get("url", "").split("v=")[-1].split("&")[0] or "Unknown"
+
+        # yt-dlp returns thumbnails as a list; fall back to first entry
+        thumb = e.get("thumbnail")
+        if not thumb:
+            thumbs = e.get("thumbnails") or []
+            thumb = thumbs[0].get("url", "") if thumbs else ""
+
         results.append(
             {
                 "id": vid_id,
@@ -50,7 +57,7 @@ def search_youtube(query: str, max_results: int = 15) -> tuple[list[dict], bool]
                 "duration": e.get("duration"),
                 "views": e.get("view_count"),
                 "url": f"https://www.youtube.com/watch?v={vid_id}",
-                "thumbnail": e.get("thumbnail") or "",
+                "thumbnail": thumb,
             }
         )
     return results, is_playlist

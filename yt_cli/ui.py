@@ -2,35 +2,32 @@
 from __future__ import annotations
 
 import asyncio
-import os
-import shutil
 import sys
 from typing import ClassVar
 
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, Container, ContentSwitcher
+from textual.containers import Horizontal, Vertical, Container
 from textual.screen import ModalScreen
 from textual.widgets import (
+    Button,
+    ContentSwitcher,
     DataTable,
     Footer,
     Header,
     Input,
     Label,
-    Static,
-    Button,
-    LoadingIndicator,
-    TabbedContent,
-    TabPane,
     ListItem,
     ListView,
+    LoadingIndicator,
+    Static,
 )
 
-import player
-import search
-import thumbnail
-from utils import fmt_duration, fmt_views, HistoryManager
+import yt_cli.player as player
+import yt_cli.search as search
+import yt_cli.thumbnail as thumbnail
+from yt_cli.utils import fmt_duration, fmt_views, HistoryManager
 
 LOGO = """\
  ██╗   ██╗████████╗      ██████╗██╗     ██╗
@@ -43,11 +40,11 @@ LOGO = """\
 HELP_TEXT = """\
 [b]Keyboard Reference[/b]
 
+  [yellow]F1[/yellow]          Toggle this help screen
   [yellow]/[/yellow]          Focus search bar
   [yellow]↑ / ↓[/yellow]      Move through results
   [yellow]Enter[/yellow]      Play selected video
-  [yellow]q[/yellow]          Quit
-  [yellow]?[/yellow]          Toggle this help screen
+  [yellow]Ctrl+Q[/yellow]     Quit
 
 [b]During mpv playback[/b]
 
@@ -59,7 +56,7 @@ HELP_TEXT = """\
 
 
 class HelpScreen(ModalScreen):
-    BINDINGS: ClassVar = [Binding("escape,q,?", "dismiss", "Close")]
+    BINDINGS: ClassVar = [Binding("escape,?", "dismiss", "Close")]
 
     def compose(self) -> ComposeResult:
         yield Static(HELP_TEXT, id="help-box")
@@ -68,7 +65,9 @@ class HelpScreen(ModalScreen):
         self.query_one("#help-box").styles.padding = (2, 4)
 
 
-class PlaybackChoice(ModalScreen[bool]):
+class PlaybackChoice(ModalScreen[bool | None]):
+    BINDINGS: ClassVar = [Binding("escape", "cancel", "Cancel")]
+
     def compose(self) -> ComposeResult:
         with Vertical(id="choice-dialog"):
             yield Label("Play as:", id="choice-title")
@@ -76,6 +75,9 @@ class PlaybackChoice(ModalScreen[bool]):
                 yield Button("Video", variant="primary", id="video")
                 yield Button("Audio", variant="success", id="audio")
             yield Label("Press Escape to cancel", id="choice-hint")
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "video":
@@ -89,10 +91,13 @@ class YtApp(App):
     CSS = """
     $accent-primary: #89b4fa;
     $accent-secondary: #f5c2e7;
+    $accent-green: #a6e3a1;
     $bg-main: #1e1e2e;
     $bg-sidebar: #181825;
+    $bg-surface: #232336;
     $fg-main: #cdd6f4;
     $fg-muted: #7f849c;
+    $border-dim: #313244;
 
     Screen {
         background: $bg-main;
@@ -111,32 +116,46 @@ class YtApp(App):
         content-align: center middle;
         color: $accent-primary;
         text-style: bold;
-        border-bottom: solid #313244;
+        border-bottom: solid $border-dim;
     }
 
     #nav-list {
         background: transparent;
+        border: none;
     }
 
     #nav-list ListItem {
         padding: 1 2;
+        border-left: solid $bg-sidebar;
     }
 
     #nav-list ListItem:hover {
-        background: #313244;
+        background: $border-dim;
+        border-left: solid $accent-primary;
     }
 
     #nav-list ListItem.--highlight {
         background: $accent-primary;
         color: $bg-main;
         text-style: bold;
+        border-left: solid $accent-primary;
     }
 
     #content {
         height: 1fr;
     }
 
-    #search-view, #history-view {
+    #search, #history {
+        height: 1fr;
+    }
+
+    #search {
+        border: solid $border-dim;
+        height: 1fr;
+    }
+
+    #history {
+        border: solid $border-dim;
         height: 1fr;
     }
 
@@ -144,6 +163,14 @@ class YtApp(App):
         height: 3;
         padding: 0 1;
         margin-bottom: 1;
+    }
+
+    #search-bar {
+        border: solid $border-dim;
+    }
+
+    #search-bar:focus {
+        border: solid $accent-primary;
     }
 
     #results-container {
@@ -155,25 +182,38 @@ class YtApp(App):
         background: transparent;
     }
 
+    #results > .datatable--header {
+        background: $bg-surface;
+        color: $accent-primary;
+        text-style: bold;
+    }
+
+    #results > .datatable--line {
+        padding: 0 1;
+    }
+
     #info-panel {
-        width: 40;
-        border-left: solid #313244;
+        width: 44;
+        border-left: solid $border-dim;
         padding: 1 2;
         background: $bg-sidebar;
     }
 
     #thumb {
-        height: 15;
+        height: 19;
         width: 100%;
         margin-bottom: 1;
         border: solid $accent-primary;
         content-align: center middle;
+        overflow: hidden;
     }
 
     #info-title {
         text-style: bold;
         color: $accent-secondary;
         margin-bottom: 1;
+        border-bottom: solid $border-dim;
+        padding-bottom: 1;
     }
 
     #status {
@@ -189,12 +229,16 @@ class YtApp(App):
         width: 100%;
         height: 100%;
         content-align: center middle;
-        background: rgba(30, 30, 46, 0.7);
+        background: rgba(30, 30, 46, 0.8);
         display: none;
     }
 
     #loading-overlay.visible {
         display: block;
+    }
+
+    LoadingIndicator {
+        color: $accent-primary;
     }
 
     HelpScreen > Static {
@@ -213,12 +257,53 @@ class YtApp(App):
         padding: 1 2;
     }
 
+    #choice-title {
+        text-style: bold;
+        color: $accent-secondary;
+        content-align: center middle;
+        padding: 1 0;
+    }
+
+    #choice-buttons {
+        align: center middle;
+        padding: 1 0;
+    }
+
+    #choice-buttons Button {
+        margin: 0 1;
+    }
+
+    #choice-hint {
+        color: $fg-muted;
+        content-align: center middle;
+    }
+
     .section-title {
         text-style: bold;
         color: $accent-primary;
         padding: 1 2;
-        background: #313244;
+        background: $bg-surface;
         width: 100%;
+    }
+
+    #history-table {
+        border: none;
+        background: transparent;
+    }
+
+    #history-table > .datatable--header {
+        background: $bg-surface;
+        color: $accent-primary;
+        text-style: bold;
+    }
+
+    /* ── Scrollbar ──────────────────────────────────────────── */
+    * > .scrollbar {
+        color: $accent-primary;
+    }
+
+    * > .scrollbar-track {
+        color: $border-dim;
     }
     """
 
@@ -227,8 +312,8 @@ class YtApp(App):
         Binding("a", "toggle_autoplay", "Autoplay", show=True),
         Binding("h", "switch_view('history')", "History", show=True),
         Binding("s", "switch_view('search')", "Search Tab", show=True),
-        Binding("q", "quit", "Quit", show=True),
-        Binding("?", "help", "Help", show=True),
+        Binding("ctrl+q", "quit", "Quit", show=True),
+        Binding("f1", "help", "Help", show=True),
     ]
 
 
@@ -357,9 +442,15 @@ class YtApp(App):
     @work(exclusive=True)
     async def _fetch_thumb(self, url: str) -> None:
         from rich.text import Text
-        rendered = await thumbnail.render(url, width=36)
+        thumb_widget = self.query_one("#thumb", Static)
+        thumb_widget.update(Text("⌛ Loading thumbnail...", style="italic cyan"))
+        
+        # Width 38 accounts for 44 total - 4 padding - 2 borders
+        rendered = await thumbnail.render(url, width=38)
         if rendered:
-            self.query_one("#thumb", Static).update(Text.from_ansi(rendered))
+            thumb_widget.update(Text.from_ansi(rendered))
+        else:
+            thumb_widget.update(Text("✖ Preview unavailable", style="red"))
 
     # ── Playback ──────────────────────────────────────────────────────────────
 
@@ -381,27 +472,58 @@ class YtApp(App):
         try:
             table = self.query_one("#results", DataTable)
             ytdl_path = player.find_tool("yt-dlp")
-            
+
             for i in range(start_idx, len(self._results)):
                 item = self._results[i]
                 table.move_cursor(row=i)
                 self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item['title']}")
                 HistoryManager.add_watch(item)
-                
+
+                if self._audio_only_pref:
+                    # Audio: await each track before starting the next
+                    await self._play_audio_track(item["url"], ytdl_path)
+                    self._set_status(f"Audio: {item['title']}")
+                    if not self._autoplay:
+                        break
+                    continue
+
                 with self.app.suspend():
                     exit_code = player.play(
-                        item["url"], 
-                        audio_only=self._audio_only_pref,
+                        item["url"],
+                        audio_only=False,
                         ytdl_path=ytdl_path
                     )
-                
-                if not self._autoplay or exit_code == 4: # 4 is user quit in mpv
+
+                if not self._autoplay or exit_code == 4:
                     break
-                    
+
         except Exception as e:
             self._set_status(f"Playback error: {e}")
-                
+
         self._set_status("Finished playback session")
+
+    async def _play_audio_track(self, url: str, ytdl_path: str | None) -> None:
+        """Play one audio track, awaiting mpv to finish (keeps TUI responsive)."""
+        mpv_path = player.find_tool("mpv")
+        if not mpv_path:
+            self._set_status("Error: mpv not found")
+            return
+
+        cmd = [mpv_path, "--really-quiet", url, "--no-video"]
+        if ytdl_path:
+            cmd.insert(1, f'--script-opts=ytdl_hook-ytdl_path="{ytdl_path}"')
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        try:
+            await proc.wait()
+        except asyncio.CancelledError:
+            proc.kill()
+            await proc.wait()
+            raise
 
 
     # ── Actions ───────────────────────────────────────────────────────────────
