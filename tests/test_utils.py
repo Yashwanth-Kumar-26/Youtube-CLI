@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from utils import fmt_duration, fmt_views, load_json, save_json
+from yt_cli.utils import fmt_duration, fmt_views, load_json, save_json
 
 
 @pytest.mark.parametrize("secs,expected", [
@@ -41,9 +41,34 @@ def test_load_json_invalid(tmp_path):
 
 
 def test_save_and_load_json(tmp_path, monkeypatch):
-    from utils import DATA_DIR
-    monkeypatch.setattr("utils.DATA_DIR", tmp_path)
+    from yt_cli.utils import DATA_DIR
+    monkeypatch.setattr("yt_cli.utils.DATA_DIR", tmp_path)
     p = tmp_path / "test.json"
     data = [{"id": "abc", "title": "Test"}]
     save_json(p, data)
     assert load_json(p) == data
+
+
+def test_history_manager(tmp_path, monkeypatch):
+    from yt_cli.utils import HistoryManager
+    monkeypatch.setattr("yt_cli.utils.DATA_DIR", tmp_path)
+    
+    # Test search history
+    HistoryManager.add_search("python tutorial")
+    HistoryManager.add_search("textual tui")
+    history = HistoryManager.get_search_history()
+    assert len(history) == 2
+    assert history[0]["query"] == "textual tui"
+    
+    # Test duplicate search (moves to top)
+    HistoryManager.add_search("python tutorial")
+    history = HistoryManager.get_search_history()
+    assert len(history) == 2
+    assert history[0]["query"] == "python tutorial"
+    
+    # Test watch history
+    video = {"id": "123", "title": "Great Video"}
+    HistoryManager.add_watch(video)
+    watch_history = HistoryManager.get_watch_history()
+    assert len(watch_history) == 1
+    assert watch_history[0]["id"] == "123"

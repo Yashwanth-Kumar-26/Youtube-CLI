@@ -11,7 +11,7 @@ def _check_python() -> None:
 
 def main() -> None:
     _check_python()
-    from ui import YtApp
+    from yt_cli.ui import YtApp
     YtApp().run()
 
 

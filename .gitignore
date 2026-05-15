@@ -47,4 +47,13 @@ debug.txt
 *.jpg
 *.tmp
 .yt-cli/
-.*txt
+
+# Databases
+*.db
+agentdb.rvf
+agentdb.rvf.lock
+
+main1/
+
+# Settings (may contain credentials)
+settings/config.ini
