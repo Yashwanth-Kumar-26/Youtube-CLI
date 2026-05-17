@@ -1,29 +1,37 @@
-"""Thumbnail fetch via httpx + chafa render."""
+"""Thumbnail fetch via httpx + chafa render with on-disk cache."""
 from __future__ import annotations
 
 import asyncio
-import os
+import hashlib
 import pathlib
 import re
 import shutil
-import tempfile
-
 
 import httpx
+
+
+CACHE_DIR = pathlib.Path.home() / ".cache" / "yt-cli" / "thumbnails"
 
 
 def _available() -> bool:
     return shutil.which("chafa") is not None
 
 
+def _cache_path(url: str) -> pathlib.Path:
+    h = hashlib.sha256(url.encode()).hexdigest()[:16]
+    return CACHE_DIR / f"{h}.jpg"
+
+
 async def _download(url: str) -> pathlib.Path | None:
-    """Download thumbnail to a temp file. Returns the path or None on failure."""
+    """Download thumbnail to cache or return cached path."""
+    cached = _cache_path(url)
+    if cached.exists() and cached.stat().st_size > 0:
+        return cached
     try:
         resp = await asyncio.wait_for(_fetch(url), timeout=15.0)
-        fd, tmp = tempfile.mkstemp(suffix=".jpg", prefix="yt_thumb_")
-        os.write(fd, resp)
-        os.close(fd)
-        return pathlib.Path(tmp)
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cached.write_bytes(resp)
+        return cached
     except Exception:
         return None
 
@@ -36,12 +44,9 @@ async def _fetch(url: str) -> bytes:
 
 
 def _clean_ansi(text: str) -> str:
-    """Strip cursor-hide/show and other sequences that break Textual rendering."""
-    # Remove hide/show cursor sequences
+    """Strip sequences that break Textual rendering."""
     text = text.replace("\x1b[?25l", "").replace("\x1b[?25h", "")
-    # Remove cursor position save/restore
     text = re.sub(r"\x1b7|\x1b8", "", text)
-    # Remove DEC private mode sequences
     text = re.sub(r"\x1b\[\??[0-9;]*[hl]", "", text)
     return text
 
@@ -56,7 +61,7 @@ async def render(url: str, width: int = 36) -> str:
             return ""
 
         proc = await asyncio.create_subprocess_exec(
-            "chafa", "-f", "symbols", "--symbols", "braille",
+            "chafa",
             "-s", f"{width}x{width // 2}", str(img),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
@@ -66,10 +71,4 @@ async def render(url: str, width: int = 36) -> str:
         return _clean_ansi(result) if result else ""
     except Exception:
         return ""
-    finally:
-        if img and img.exists():
-            try:
-                img.unlink()
-            except Exception:
-                pass
 

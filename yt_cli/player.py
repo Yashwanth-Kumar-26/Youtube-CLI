@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import subprocess
@@ -47,3 +48,31 @@ def play(url: str, audio_only: bool = False, ytdl_path: str | None = None) -> in
 
     result = subprocess.run(cmd)
     return result.returncode
+
+
+async def play_async(url: str, audio_only: bool = False, ytdl_path: str | None = None) -> int:
+    """Spawn mpv asynchronously, returning the exit code when it finishes."""
+    mpv_path = find_tool("mpv")
+    if not mpv_path:
+        raise RuntimeError("mpv not found")
+
+    cmd = [mpv_path, "--really-quiet"]
+    if ytdl_path:
+        cmd.append(f'--script-opts=ytdl_hook-ytdl_path="{ytdl_path}"')
+
+    cmd.append(url)
+
+    if audio_only:
+        cmd.append("--no-video")
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    try:
+        return await proc.wait()
+    except asyncio.CancelledError:
+        proc.kill()
+        await proc.wait()
+        raise
