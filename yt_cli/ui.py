@@ -200,7 +200,7 @@ class YtApp(App):
     }
 
     #thumb {
-        height: 19;
+        height: 12;
         width: 100%;
         margin-bottom: 1;
         border: solid $accent-primary;
@@ -317,8 +317,9 @@ class YtApp(App):
     ]
 
 
-    def __init__(self) -> None:
+    def __init__(self, incognito: bool = False) -> None:
         super().__init__()
+        self._incognito = incognito
         self._results: list[dict] = []
         self._current_thumb_task: asyncio.Task | None = None
         self._autoplay: bool = False
@@ -331,7 +332,7 @@ class YtApp(App):
         yield Header()
         with Horizontal():
             with Vertical(id="sidebar"):
-                yield Static("YT-CLI", id="sidebar-logo")
+                yield Static("YT-CLI INCOG" if self._incognito else "YT-CLI", id="sidebar-logo")
                 with ListView(id="nav-list"):
                     yield ListItem(Label("Search"), id="nav-search")
                     yield ListItem(Label("History"), id="nav-history")
@@ -379,7 +380,8 @@ class YtApp(App):
         query = event.value.strip()
         if not query:
             return
-        HistoryManager.add_search(query)
+        if not self._incognito:
+            HistoryManager.add_search(query)
         self._refresh_history()
         self.query_one("#loading-overlay").add_class("visible")
         self._set_status(f"Searching: {query}…")
@@ -442,13 +444,14 @@ class YtApp(App):
     @work(exclusive=True)
     async def _fetch_thumb(self, url: str) -> None:
         from rich.text import Text
+        from textual.content import Content
         thumb_widget = self.query_one("#thumb", Static)
         thumb_widget.update(Text("Loading thumbnail...", style="italic cyan"))
-        
+
         # Width 38 accounts for 44 total - 4 padding - 2 borders
         rendered = await thumbnail.render(url, width=38)
         if rendered:
-            thumb_widget.update(Text.from_ansi(rendered))
+            thumb_widget.update(Content.from_rich_text(Text.from_ansi(rendered)))
         else:
             thumb_widget.update(Text("Preview unavailable", style="red"))
 
@@ -477,7 +480,8 @@ class YtApp(App):
                 item = self._results[i]
                 table.move_cursor(row=i)
                 self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item['title']}")
-                HistoryManager.add_watch(item)
+                if not self._incognito:
+                    HistoryManager.add_watch(item)
 
                 if self._audio_only_pref:
                     # Audio: await each track before starting the next

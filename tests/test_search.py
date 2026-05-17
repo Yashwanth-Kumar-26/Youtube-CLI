@@ -57,7 +57,7 @@ def test_search_returns_results(mock_cls):
 
 @patch("yt_cli.search.yt_dlp.YoutubeDL")
 def test_search_thumbnail_from_list(mock_cls):
-    """Thumbnail should fall back to thumbnails[0] when thumbnail key is missing."""
+    """Thumbnail should fall back to thumbnails[-1] (highest res) when thumbnail key is missing."""
     mock_cls.return_value = _mock_ydl(FAKE_ENTRIES)
     results, _ = search_youtube("test", max_results=5)
     # Entry 0 has direct thumbnail

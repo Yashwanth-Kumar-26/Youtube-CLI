@@ -44,30 +44,39 @@ async def _fetch(url: str) -> bytes:
 
 
 def _clean_ansi(text: str) -> str:
-    """Strip sequences that break Textual rendering."""
+    """Strip sequences that break Textual/Rich rendering."""
+    # cursor hide/show, save/restore, mode sequences
     text = text.replace("\x1b[?25l", "").replace("\x1b[?25h", "")
     text = re.sub(r"\x1b7|\x1b8", "", text)
     text = re.sub(r"\x1b\[\??[0-9;]*[hl]", "", text)
+    # reverse video (ESC[7m) — not supported by Rich, causes visual garbage
+    text = re.sub(r"\x1b\[(?:[0-9;]*;)?7m|\x1b\[7(?:;[0-9;]*)?m", "", text)
     return text
 
 
-async def render(url: str, width: int = 36) -> str:
+async def _run_chafa(img: pathlib.Path, width: int, height: int) -> str:
+    proc = await asyncio.create_subprocess_exec(
+        "chafa", "-f", "symbols", "-c", "full",
+        "--margin-bottom", "0",
+        "-s", f"{width}x{height}", str(img),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, _ = await proc.communicate()
+    return stdout.decode() if proc.returncode == 0 else ""
+
+
+async def render(url: str, width: int = 38) -> str:
     if not url or not _available():
         return ""
-    img = None
     try:
         img = await _download(url)
         if not img or not img.exists():
             return ""
 
-        proc = await asyncio.create_subprocess_exec(
-            "chafa",
-            "-s", f"{width}x{width // 2}", str(img),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        stdout, _ = await proc.communicate()
-        result = stdout.decode() if proc.returncode == 0 else ""
+        # YouTube thumbnails are 16:9; half-block rows are ~2px tall
+        height = max(1, round(width * 9 / 16 / 2))
+        result = await _run_chafa(img, width, height)
         return _clean_ansi(result) if result else ""
     except Exception:
         return ""

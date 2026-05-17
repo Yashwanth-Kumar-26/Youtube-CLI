@@ -11,8 +11,9 @@ def _check_python() -> None:
 
 def main() -> None:
     _check_python()
+    incognito = len(sys.argv) > 1 and sys.argv[1] in ("incog", "incognito", "--incog")
     from yt_cli.ui import YtApp
-    YtApp().run()
+    YtApp(incognito=incognito).run()
 
 
 if __name__ == "__main__":
