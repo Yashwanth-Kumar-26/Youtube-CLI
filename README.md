@@ -1,22 +1,37 @@
-# YT-CLI
+<p align="center">
+  <img src="yt_tui/yt-tui.png" alt="YT-TUI Logo" width="512" />
+</p>
 
-A lightweight, terminal-native YouTube client. Search, preview, and stream videos without leaving your shell. No API key required.
+<h1 align="center">YT-TUI</h1>
+
+<p align="center">
+  <strong>A lightweight, terminal-native YouTube client</strong><br/>
+  Search, preview, and stream videos — no API key required, no browser needed.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/Textual-TUI-green?logo=terminal" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/License-MIT-yellow?logo=law" /></a>
+</p>
+
+---
 
 ## Features
 
-- **Universal Search**: Type keywords or paste direct YouTube video and playlist URLs.
-- **Side Navigation**: Switch between Search and History views.
-- **Persistent History**: Automatically saves your searches and watched videos.
-- **Playlist Support**: Automatically extracts and lists all videos from pasted playlist links.
-- **Playback Options**: Choose between Video and Audio-only mode for every session.
-- **Autoplay**: Automatically advances to the next video in the list (especially for playlists).
-- **Asynchronous Thumbnails**: High-performance ANSI-art previews that don't block the UI.
+- **Universal Search** — keywords or direct YouTube video/playlist URLs
+- **Side Navigation** — switch between Search and History views
+- **Persistent History** — searches and watch history saved across sessions
+- **Playlist Support** — auto-extract and list all videos from playlist links
+- **Playback Options** — Video or Audio-only mode per session
+- **Autoplay** — auto-advance through playlist tracks
+- **Asynchronous Thumbnails** — high-performance ANSI-art previews, non-blocking
 
 ## Requirements
 
 - Python 3.10+
 - [mpv](https://mpv.io/) — video playback
-- [chafa](https://hpjansson.org/chafa/) — thumbnail rendering (optional)
+- [chafa](https://hpjansson.org/chafa/) — thumbnail rendering
 
 ### System Dependencies
 
@@ -30,32 +45,51 @@ sudo apt install mpv chafa
 # Arch
 sudo pacman -S mpv chafa
 
-# macOS (Homebrew - Under Development)
+# macOS (Homebrew)
 brew install mpv chafa
 
-# Windows (Scoop - Under Development)
+# Windows (Scoop)
 scoop install mpv chafa
 
-# Windows (Winget - Under Development)
+# Windows (Winget)
 winget install shinchiro.mpv Chafa
-
 ```
 
 ## Installation
 
+### Quick setup
+
 ```bash
-git clone https://github.com/Yashwanth-Kumar-26/Youtube-CLI.git
-cd Youtube-CLI
-pip install -e .
+git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
+cd Youtube-TUI
+```
+
+### Unix/Linux/macOS
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+### Windows
+
+```cmd
+setup.cmd
+```
+
+### Manual
+
+```bash
+uv venv && uv pip install -e .
 ```
 
 ## Usage
 
 ```bash
-yt-cli
+yt-tui
 ```
 
-The TUI launches with the search bar focused. Start typing or paste a URL and press **Enter**.
+The TUI launches with the search bar focused. Type or paste a URL and press **Enter**.
 
 ## Keyboard Reference
 
@@ -77,23 +111,8 @@ The TUI launches with the search bar focused. Start typing or paste a URL and pr
 | `Space` | Pause / resume |
 | `← / →` | Seek backward / forward |
 | `↑ / ↓` | Volume up / down |
-| `q` | Stop and return to YT-CLI |
+| `q` | Stop and return to YT-TUI |
 
-## Project Structure
-
-```
-yt-cli/
-├── yt_cli/        # Package directory
-│   ├── __init__.py   # Package init, exports main()
-│   ├── cli.py        # Entry point logic
-│   ├── search.py     # yt-dlp search and playlist wrapper
-│   ├── player.py     # mpv subprocess handler
-│   ├── thumbnail.py  # chafa thumbnail rendering engine
-│   ├── ui.py         # Textual TUI and state management
-│   └── utils.py      # Formatting and I/O helpers
-├── tests/         # Unit tests
-└── pyproject.toml # Project metadata and dependencies
-```
 
 ## Running Tests
 
@@ -102,11 +121,14 @@ pip install pytest pytest-asyncio
 pytest tests/ -v
 ```
 
+## Acknowledgement
+
+YT-TUI is built on top of the incredible [yt-dlp](https://github.com/yt-dlp/yt-dlp) project. Massive thanks to the yt-dlp maintainers and community for keeping YouTube accessible and open.
+
 ## Notes
 
-- Uses `yt-dlp` for YouTube access — no API key needed.
-- All user data stored in `~/.yt-cli/` as flat JSON.
-- **Cross-Platform**: Developed on Linux. **Windows and macOS support are currently under development (Experimental)**.
-- **Thumbnails**: Require a terminal with Unicode/ANSI support (like Windows Terminal, iTerm2, or any modern Linux terminal). Silently skipped if tools are missing.
-- **Audio Mode**: In Audio mode, `mpv` runs with the `--no-video` flag to save bandwidth.
-
+- Uses `yt-dlp` for YouTube access — **no API key needed**
+- All user data stored in `~/.yt-tui/` as flat JSON
+- **Cross-Platform**: developed on Linux — Windows and macOS support experimental
+- **Thumbnails**: require a terminal with Unicode/ANSI support (Windows Terminal, iTerm2, modern Linux term). Silently skipped if tools missing
+- **Audio Mode**: mpv runs with `--no-video` flag to save bandwidth

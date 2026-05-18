@@ -43,11 +43,11 @@ def search_youtube(query: str, max_results: int = 15) -> tuple[list[dict], bool]
         # For flat extraction, id might be in 'id' or 'url'
         vid_id = e.get("id") or e.get("url", "").split("v=")[-1].split("&")[0] or "Unknown"
 
-        # yt-dlp returns thumbnails as a list; fall back to first entry
+        # yt-dlp returns thumbnails as a list; use highest resolution
         thumb = e.get("thumbnail")
         if not thumb:
             thumbs = e.get("thumbnails") or []
-            thumb = thumbs[0].get("url", "") if thumbs else ""
+            thumb = thumbs[-1].get("url", "") if thumbs else ""
 
         results.append(
             {

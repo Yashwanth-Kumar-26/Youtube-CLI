@@ -46,7 +46,7 @@ scratch/
 debug.txt
 *.jpg
 *.tmp
-.yt-cli/
+.yt-tui/
 
 # Databases
 *.db

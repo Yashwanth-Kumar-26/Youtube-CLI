@@ -1,4 +1,4 @@
-"""Textual TUI layer for YT-CLI."""
+"""Textual TUI layer for YT-TUI."""
 from __future__ import annotations
 
 import asyncio
@@ -24,10 +24,10 @@ from textual.widgets import (
     Static,
 )
 
-import yt_cli.player as player
-import yt_cli.search as search
-import yt_cli.thumbnail as thumbnail
-from yt_cli.utils import fmt_duration, fmt_views, HistoryManager
+import yt_tui.player as player
+import yt_tui.search as search
+import yt_tui.thumbnail as thumbnail
+from yt_tui.utils import fmt_duration, fmt_views, HistoryManager
 
 LOGO = """\
  ██╗   ██╗████████╗      ██████╗██╗     ██╗
@@ -51,7 +51,7 @@ HELP_TEXT = """\
   [yellow]Space[/yellow]      Pause / resume
   [yellow]← / →[/yellow]      Seek backward / forward
   [yellow]↑ / ↓[/yellow]      Volume up / down
-  [yellow]q[/yellow]          Stop and return to YT-CLI
+  [yellow]q[/yellow]          Stop and return to YT-TUI
 """
 
 
@@ -200,7 +200,7 @@ class YtApp(App):
     }
 
     #thumb {
-        height: 19;
+        height: 12;
         width: 100%;
         margin-bottom: 1;
         border: solid $accent-primary;
@@ -317,8 +317,9 @@ class YtApp(App):
     ]
 
 
-    def __init__(self) -> None:
+    def __init__(self, incognito: bool = False) -> None:
         super().__init__()
+        self._incognito = incognito
         self._results: list[dict] = []
         self._current_thumb_task: asyncio.Task | None = None
         self._autoplay: bool = False
@@ -331,10 +332,10 @@ class YtApp(App):
         yield Header()
         with Horizontal():
             with Vertical(id="sidebar"):
-                yield Static("YT-CLI", id="sidebar-logo")
+                yield Static("YT-TUI INCOG" if self._incognito else "YT-TUI", id="sidebar-logo")
                 with ListView(id="nav-list"):
-                    yield ListItem(Label("🔍 Search"), id="nav-search")
-                    yield ListItem(Label("📜 History"), id="nav-history")
+                    yield ListItem(Label("Search"), id="nav-search")
+                    yield ListItem(Label("History"), id="nav-history")
             
             with Vertical(id="content"):
                 with ContentSwitcher(initial="search"):
@@ -379,7 +380,8 @@ class YtApp(App):
         query = event.value.strip()
         if not query:
             return
-        HistoryManager.add_search(query)
+        if not self._incognito:
+            HistoryManager.add_search(query)
         self._refresh_history()
         self.query_one("#loading-overlay").add_class("visible")
         self._set_status(f"Searching: {query}…")
@@ -402,8 +404,9 @@ class YtApp(App):
         self.query_one("#loading-overlay").remove_class("visible")
         self._results = results
         self._is_playlist_mode = is_playlist
-        if is_playlist:
+        if is_playlist and not self._autoplay:
             self._autoplay = True
+            self._set_status("Playlist loaded — Autoplay ON")
         
         table = self.query_one("#results", DataTable)
         table.clear()
@@ -442,15 +445,16 @@ class YtApp(App):
     @work(exclusive=True)
     async def _fetch_thumb(self, url: str) -> None:
         from rich.text import Text
+        from textual.content import Content
         thumb_widget = self.query_one("#thumb", Static)
-        thumb_widget.update(Text("⌛ Loading thumbnail...", style="italic cyan"))
-        
+        thumb_widget.update(Text("Loading thumbnail...", style="italic cyan"))
+
         # Width 38 accounts for 44 total - 4 padding - 2 borders
         rendered = await thumbnail.render(url, width=38)
         if rendered:
-            thumb_widget.update(Text.from_ansi(rendered))
+            thumb_widget.update(Content.from_rich_text(Text.from_ansi(rendered)))
         else:
-            thumb_widget.update(Text("✖ Preview unavailable", style="red"))
+            thumb_widget.update(Text("Preview unavailable", style="red"))
 
     # ── Playback ──────────────────────────────────────────────────────────────
 
@@ -477,7 +481,8 @@ class YtApp(App):
                 item = self._results[i]
                 table.move_cursor(row=i)
                 self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item['title']}")
-                HistoryManager.add_watch(item)
+                if not self._incognito:
+                    HistoryManager.add_watch(item)
 
                 if self._audio_only_pref:
                     # Audio: await each track before starting the next
@@ -487,8 +492,8 @@ class YtApp(App):
                         break
                     continue
 
-                with self.app.suspend():
-                    exit_code = player.play(
+                async with self.app.suspend():
+                    exit_code = await player.play_async(
                         item["url"],
                         audio_only=False,
                         ytdl_path=ytdl_path
@@ -504,26 +509,12 @@ class YtApp(App):
 
     async def _play_audio_track(self, url: str, ytdl_path: str | None) -> None:
         """Play one audio track, awaiting mpv to finish (keeps TUI responsive)."""
-        mpv_path = player.find_tool("mpv")
-        if not mpv_path:
-            self._set_status("Error: mpv not found")
-            return
-
-        cmd = [mpv_path, "--really-quiet", url, "--no-video"]
-        if ytdl_path:
-            cmd.insert(1, f'--script-opts=ytdl_hook-ytdl_path="{ytdl_path}"')
-
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
         try:
-            await proc.wait()
+            await player.play_async(url, audio_only=True, ytdl_path=ytdl_path)
         except asyncio.CancelledError:
-            proc.kill()
-            await proc.wait()
             raise
+        except Exception:
+            self._set_status("Audio playback failed")
 
 
     # ── Actions ───────────────────────────────────────────────────────────────
