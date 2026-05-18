@@ -57,10 +57,30 @@ winget install shinchiro.mpv Chafa
 
 ## Installation
 
+### Quick setup
+
 ```bash
 git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
 cd Youtube-TUI
-pip install -e .
+```
+
+### Unix/Linux/macOS
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+### Windows
+
+```cmd
+setup.cmd
+```
+
+### Manual
+
+```bash
+uv venv && uv pip install -e .
 ```
 
 ## Usage
@@ -93,22 +113,6 @@ The TUI launches with the search bar focused. Type or paste a URL and press **En
 | `↑ / ↓` | Volume up / down |
 | `q` | Stop and return to YT-TUI |
 
-## Project Structure
-
-```
-yt-tui/
-├── yt_tui/        # Package directory
-│   ├── __init__.py   # Package init, exports main()
-│   ├── cli.py        # Entry point logic
-│   ├── search.py     # yt-dlp search and playlist wrapper
-│   ├── player.py     # mpv subprocess handler
-│   ├── thumbnail.py  # chafa thumbnail rendering engine
-│   ├── ui.py         # Textual TUI and state management
-│   └── utils.py      # Formatting and I/O helpers
-├── tests/         # Unit tests
-├── yt-tui.png     # Project logo
-└── pyproject.toml # Project metadata and dependencies
-```
 
 ## Running Tests
 
@@ -116,6 +120,10 @@ yt-tui/
 pip install pytest pytest-asyncio
 pytest tests/ -v
 ```
+
+## Acknowledgement
+
+YT-TUI is built on top of the incredible [yt-dlp](https://github.com/yt-dlp/yt-dlp) project. Massive thanks to the yt-dlp maintainers and community for keeping YouTube accessible and open.
 
 ## Notes
 
