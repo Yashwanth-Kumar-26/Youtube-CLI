@@ -449,7 +449,6 @@ class YtApp(App):
         thumb_widget = self.query_one("#thumb", Static)
         thumb_widget.update(Text("Loading thumbnail...", style="italic cyan"))
 
-        # Width 38 accounts for 44 total - 4 padding - 2 borders
         rendered = await thumbnail.render(url, width=38)
         if rendered:
             thumb_widget.update(Content.from_rich_text(Text.from_ansi(rendered)))
