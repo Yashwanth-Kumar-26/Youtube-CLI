@@ -89,7 +89,7 @@ class PlaybackChoice(ModalScreen[bool | None]):
 
 class YtApp(App):
     CSS = """
-    $accent-primary: #89b4fa;
+    $accent-primary: #FF2D2D;
     $accent-secondary: #f5c2e7;
     $accent-green: #a6e3a1;
     $bg-main: #1e1e2e;
