@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from yt_cli.utils import fmt_duration, fmt_views, load_json, save_json
+from yt_tui.utils import fmt_duration, fmt_views, load_json, save_json
 
 
 @pytest.mark.parametrize("secs,expected", [
@@ -41,8 +41,8 @@ def test_load_json_invalid(tmp_path):
 
 
 def test_save_and_load_json(tmp_path, monkeypatch):
-    from yt_cli.utils import DATA_DIR
-    monkeypatch.setattr("yt_cli.utils.DATA_DIR", tmp_path)
+    from yt_tui.utils import DATA_DIR
+    monkeypatch.setattr("yt_tui.utils.DATA_DIR", tmp_path)
     p = tmp_path / "test.json"
     data = [{"id": "abc", "title": "Test"}]
     save_json(p, data)
@@ -50,8 +50,8 @@ def test_save_and_load_json(tmp_path, monkeypatch):
 
 
 def test_history_manager(tmp_path, monkeypatch):
-    from yt_cli.utils import HistoryManager
-    monkeypatch.setattr("yt_cli.utils.DATA_DIR", tmp_path)
+    from yt_tui.utils import HistoryManager
+    monkeypatch.setattr("yt_tui.utils.DATA_DIR", tmp_path)
     
     # Test search history
     HistoryManager.add_search("python tutorial")

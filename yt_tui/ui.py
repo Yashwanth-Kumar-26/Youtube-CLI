@@ -1,4 +1,4 @@
-"""Textual TUI layer for YT-CLI."""
+"""Textual TUI layer for YT-TUI."""
 from __future__ import annotations
 
 import asyncio
@@ -24,10 +24,10 @@ from textual.widgets import (
     Static,
 )
 
-import yt_cli.player as player
-import yt_cli.search as search
-import yt_cli.thumbnail as thumbnail
-from yt_cli.utils import fmt_duration, fmt_views, HistoryManager
+import yt_tui.player as player
+import yt_tui.search as search
+import yt_tui.thumbnail as thumbnail
+from yt_tui.utils import fmt_duration, fmt_views, HistoryManager
 
 LOGO = """\
  ██╗   ██╗████████╗      ██████╗██╗     ██╗
@@ -51,7 +51,7 @@ HELP_TEXT = """\
   [yellow]Space[/yellow]      Pause / resume
   [yellow]← / →[/yellow]      Seek backward / forward
   [yellow]↑ / ↓[/yellow]      Volume up / down
-  [yellow]q[/yellow]          Stop and return to YT-CLI
+  [yellow]q[/yellow]          Stop and return to YT-TUI
 """
 
 
@@ -332,7 +332,7 @@ class YtApp(App):
         yield Header()
         with Horizontal():
             with Vertical(id="sidebar"):
-                yield Static("YT-CLI INCOG" if self._incognito else "YT-CLI", id="sidebar-logo")
+                yield Static("YT-TUI INCOG" if self._incognito else "YT-TUI", id="sidebar-logo")
                 with ListView(id="nav-list"):
                     yield ListItem(Label("Search"), id="nav-search")
                     yield ListItem(Label("History"), id="nav-history")
@@ -404,8 +404,9 @@ class YtApp(App):
         self.query_one("#loading-overlay").remove_class("visible")
         self._results = results
         self._is_playlist_mode = is_playlist
-        if is_playlist:
+        if is_playlist and not self._autoplay:
             self._autoplay = True
+            self._set_status("Playlist loaded — Autoplay ON")
         
         table = self.query_one("#results", DataTable)
         table.clear()

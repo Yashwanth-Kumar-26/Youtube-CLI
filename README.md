@@ -1,4 +1,4 @@
-# YT-CLI
+# YT-TUI
 
 A lightweight, terminal-native YouTube client. Search, preview, and stream videos without leaving your shell. No API key required.
 
@@ -44,15 +44,15 @@ winget install shinchiro.mpv Chafa
 ## Installation
 
 ```bash
-git clone https://github.com/Yashwanth-Kumar-26/Youtube-CLI.git
-cd Youtube-CLI
+git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
+cd Youtube-TUI
 pip install -e .
 ```
 
 ## Usage
 
 ```bash
-yt-cli
+yt-tui
 ```
 
 The TUI launches with the search bar focused. Start typing or paste a URL and press **Enter**.
@@ -77,13 +77,13 @@ The TUI launches with the search bar focused. Start typing or paste a URL and pr
 | `Space` | Pause / resume |
 | `← / →` | Seek backward / forward |
 | `↑ / ↓` | Volume up / down |
-| `q` | Stop and return to YT-CLI |
+| `q` | Stop and return to YT-TUI |
 
 ## Project Structure
 
 ```
-yt-cli/
-├── yt_cli/        # Package directory
+yt-tui/
+├── yt_tui/        # Package directory
 │   ├── __init__.py   # Package init, exports main()
 │   ├── cli.py        # Entry point logic
 │   ├── search.py     # yt-dlp search and playlist wrapper
@@ -105,7 +105,7 @@ pytest tests/ -v
 ## Notes
 
 - Uses `yt-dlp` for YouTube access — no API key needed.
-- All user data stored in `~/.yt-cli/` as flat JSON.
+- All user data stored in `~/.yt-tui/` as flat JSON.
 - **Cross-Platform**: Developed on Linux. **Windows and macOS support are currently under development (Experimental)**.
 - **Thumbnails**: Require a terminal with Unicode/ANSI support (like Windows Terminal, iTerm2, or any modern Linux terminal). Silently skipped if tools are missing.
 - **Audio Mode**: In Audio mode, `mpv` runs with the `--no-video` flag to save bandwidth.

@@ -28,7 +28,7 @@ def fmt_views(count: int | None) -> str:
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-DATA_DIR = Path.home() / ".yt-cli"
+DATA_DIR = Path.home() / ".yt-tui"
 
 
 def ensure_data_dir() -> None:

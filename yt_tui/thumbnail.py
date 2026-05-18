@@ -10,7 +10,7 @@ import shutil
 import httpx
 
 
-CACHE_DIR = pathlib.Path.home() / ".cache" / "yt-cli" / "thumbnails"
+CACHE_DIR = pathlib.Path.home() / ".cache" / "yt-tui" / "thumbnails"
 
 
 def _available() -> bool:
