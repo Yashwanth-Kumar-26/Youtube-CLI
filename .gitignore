@@ -50,10 +50,11 @@ debug.txt
 
 # Databases
 *.db
-agentdb.rvf
-agentdb.rvf.lock
+*.rvf
+*.rvf.lock
 
 main1/
 
 # Settings (may contain credentials)
 settings/config.ini
+*.lock

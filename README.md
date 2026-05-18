@@ -30,7 +30,7 @@
 ## Requirements
 
 - Python 3.10+
-- [mpv](https://mpv.io/) — video playback
+- [mpv](https://mpv.io/) — Video & Audio playback
 - [chafa](https://hpjansson.org/chafa/) — thumbnail rendering
 
 ### System Dependencies
@@ -57,30 +57,21 @@ winget install shinchiro.mpv Chafa
 
 ## Installation
 
-### Quick setup
+Run `setup.sh` (Unix/Linux/macOS) or `setup.cmd` (Windows). Uses `uv` under the hood — installs `yt-tui` globally so it works from any directory.
 
+### Unix/Linux/macOS
 ```bash
 git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
 cd Youtube-TUI
-```
-
-### Unix/Linux/macOS
-
-```bash
-chmod +x setup.sh
+chmod +x setup.sh 
 ./setup.sh
 ```
 
 ### Windows
-
 ```cmd
-setup.cmd
-```
-
-### Manual
-
-```bash
-uv venv && uv pip install -e .
+git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
+cd Youtube-TUI
+setup.cmd           
 ```
 
 ## Usage
