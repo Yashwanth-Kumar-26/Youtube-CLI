@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # YT-TUI setup — Unix/Linux/macOS
-# Uses uv for all Python operations.
-
+# Uses uv for all Python operations. Installs yt-tui globally.
 set -eufo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,9 +17,9 @@ fi
 echo ">> uv $(uv --version)"
 
 # ── 2. Python ──────────────────────────────────────────────────
-UV_PY=$(uv python find 3.10||true)
+UV_PY=$(uv python find || command -v python3 || command -v python)
 if [ -z "${UV_PY:-}" ]; then
-  echo "!! Python 3.10+ required — install it and retry."
+  echo "!! No usable Python found — install Python 3.10+ and retry."
   exit 1
 fi
 echo ">> Python ${UV_PY}"
@@ -63,18 +62,20 @@ if [ ${#MISSING_SYSTEM[@]} -gt 0 ]; then
   esac
 fi
 
-# ── 4. venv + install ─────────────────────────────────────────
-echo ">> Creating virtual environment…"
-uv venv
-echo ">> Installing yt-tui (editable)…"
-uv pip install --python "$UV_PY" -e .
+# ── 4. Global install ─────────────────────────────────────────
+echo ">> Globally installing yt-tui…"
+uv tool install -e . --python "$UV_PY"
+
+# ── 5. Edge-cases: upgrade in-place if already present ────────
+if command -v yt-tui >/dev/null 2>&1; then
+  echo ">> yt-tui installed to $(command -v yt-tui)"
+  yt-tui --version 2>/dev/null || true
+else
+  echo ">> yt-tui binary not in PATH — checking uv tools…"
+  uv tool list 2>/dev/null
+fi
 
 echo ""
 echo "=== Done ==="
-if [ -f ".venv/bin/activate" ]; then
-  echo "Activate:   source .venv/bin/activate"
-else
-  echo "Activate:   uv run -- python -m yt_tui"
-fi
-echo "Run:        yt-tui"
-echo "Tests:      uv run -- pytest tests/ -v"
+echo "Run from anywhere:  yt-tui"
+echo "Tests:              uv run -- pytest tests/ -v"

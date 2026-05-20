@@ -1,6 +1,6 @@
 @echo off
 :: YT-TUI setup — Windows
-:: Uses uv for all Python operations.
+:: Uses uv for all Python operations. Installs yt-tui globally.
 
 echo === YT-TUI Setup ===
 
@@ -18,7 +18,7 @@ where mpv >nul 2>nul
 if %errorlevel% neq 0 (
     echo.
     echo [WARN] mpv not found — install from https://mpv.io/installation/
-    echo        Thumbnails will also be disabled without chafa.
+    echo        Thumbnails disabled without chafa.
 )
 where chafa >nul 2>nul
 if %errorlevel% neq 0 (
@@ -27,15 +27,11 @@ if %errorlevel% neq 0 (
     echo        Thumbnails disabled.
 )
 
-:: 3. venv + install
+:: 3. Global install
 echo.
-echo Creating virtual environment…
-uv venv
-echo Installing yt-tui (editable)…
-uv pip install -e .
+echo Globally installing yt-tui…
+uv tool install -e .
 
 echo.
 echo === Done ===
-echo Activate:  .venv\Scripts\activate
-echo Run:       yt-tui
-echo Tests:     uv run -- pytest tests/ -v
+echo Run from anywhere:  yt-tui

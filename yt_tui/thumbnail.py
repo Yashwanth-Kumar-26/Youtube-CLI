@@ -3,81 +3,103 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import pathlib
 import re
 import shutil
+import subprocess
 
 import httpx
 
+logger = logging.getLogger(__name__)
 
 CACHE_DIR = pathlib.Path.home() / ".cache" / "yt-tui" / "thumbnails"
+WIDTH_DEF = 38
+CHAFA_TIMEOUT = 8.0
+_HASH_LEN = 16
 
 
-def _available() -> bool:
+def is_available() -> bool:
     return shutil.which("chafa") is not None
 
 
 def _cache_path(url: str) -> pathlib.Path:
-    h = hashlib.sha256(url.encode()).hexdigest()[:16]
+    h = hashlib.sha256(url.encode()).hexdigest()[:_HASH_LEN]
     return CACHE_DIR / f"{h}.jpg"
 
 
 async def _download(url: str) -> pathlib.Path | None:
-    """Download thumbnail to cache or return cached path."""
     cached = _cache_path(url)
     if cached.exists() and cached.stat().st_size > 0:
         return cached
     try:
-        resp = await asyncio.wait_for(_fetch(url), timeout=15.0)
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        cached.write_bytes(resp)
-        return cached
+        data = await _fetch(url)
+        if data:
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            cached.write_bytes(data)
+            return cached
     except Exception:
-        return None
+        logger.debug("thumbnail download failed: %s", url, exc_info=True)
+    return None
 
 
-async def _fetch(url: str) -> bytes:
-    async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        return resp.content
+async def _fetch(url: str) -> bytes | None:
+    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+        r = await client.get(url)
+        r.raise_for_status()
+        return r.content
 
 
 def _clean_ansi(text: str) -> str:
-    """Strip sequences that break Textual/Rich rendering."""
-    # cursor hide/show, save/restore, mode sequences
+    """Strip CSI/OSC sequences that break Textual/Rich rendering."""
     text = text.replace("\x1b[?25l", "").replace("\x1b[?25h", "")
     text = re.sub(r"\x1b7|\x1b8", "", text)
     text = re.sub(r"\x1b\[\??[0-9;]*[hl]", "", text)
-    # reverse video (ESC[7m) — not supported by Rich, causes visual garbage
     text = re.sub(r"\x1b\[(?:[0-9;]*;)?7m|\x1b\[7(?:;[0-9;]*)?m", "", text)
     return text
 
 
-async def _run_chafa(img: pathlib.Path, width: int, height: int) -> str:
-    proc = await asyncio.create_subprocess_exec(
+def _run_chafa_sync(img: pathlib.Path, width: int, height: int) -> str:
+    size = f"{max(1, min(width, 180))}x{height}"
+    cargs = [
         "chafa", "-f", "symbols", "-c", "full",
         "--margin-bottom", "0",
-        "-s", f"{width}x{height}", str(img),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, _ = await proc.communicate()
-    return stdout.decode() if proc.returncode == 0 else ""
+        "-s", size,
+        str(img),
+    ]
+    try:
+        cp = subprocess.run(
+            cargs, capture_output=True, text=True, timeout=CHAFA_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        logger.warning("chafa timed-out")
+        return ""
+    except FileNotFoundError:
+        logger.warning("chafa binary not found on PATH")
+        return ""
+    except Exception as exc:
+        logger.warning("chafa failed: %s", exc)
+        return ""
+
+    if cp.returncode != 0:
+        logger.debug("chafa RC=%s: %s", cp.returncode, cp.stderr.strip())
+        return ""
+
+    return _clean_ansi(cp.stdout)
 
 
-async def render(url: str, width: int = 38) -> str:
-    if not url or not _available():
+async def render(url: str, width: int = WIDTH_DEF) -> str:
+    """Return ANSI-art thumbnail string ready for ``Text.from_ansi()``."""
+    if not url or not is_available():
         return ""
     try:
         img = await _download(url)
         if not img or not img.exists():
             return ""
-
-        # YouTube thumbnails are 16:9; half-block rows are ~2px tall
-        height = max(1, round(width * 9 / 16 / 2))
-        result = await _run_chafa(img, width, height)
-        return _clean_ansi(result) if result else ""
+        height = max(3, round(width * 9 / 16 / 2))
+        return _run_chafa_sync(img, width, height)
+    except asyncio.CancelledError:
+        raise
     except Exception:
+        logger.warning("thumbnail render failed: %s", url, exc_info=True)
         return ""
-
