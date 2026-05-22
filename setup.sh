@@ -64,7 +64,7 @@ fi
 
 # ── 4. Global install ─────────────────────────────────────────
 echo ">> Globally installing yt-tui…"
-uv tool install -e . --python "$UV_PY"
+uv tool install . --python "$UV_PY"
 
 # ── 5. Edge-cases: upgrade in-place if already present ────────
 if command -v yt-tui >/dev/null 2>&1; then
