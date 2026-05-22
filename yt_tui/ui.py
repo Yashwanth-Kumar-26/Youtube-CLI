@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 from typing import ClassVar
 
 from textual import on, work
@@ -444,7 +443,7 @@ class YtApp(App):
             f"{fmt_views(r['views'])} views"
         )
         self.query_one("#thumb", Static).update("")
-        logger.info(f"handle_highlight: thumbnail URL: {r.get('thumbnail')}")
+        logger.debug(f"handle_highlight: thumbnail URL: {r.get('thumbnail')}")
         if r.get("thumbnail"):
             self._fetch_thumb(r["thumbnail"])
 

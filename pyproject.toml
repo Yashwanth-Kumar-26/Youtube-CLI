@@ -22,4 +22,3 @@ include = ["yt_tui", "yt_tui.*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["scratch"]
-asyncio_mode = "auto"
