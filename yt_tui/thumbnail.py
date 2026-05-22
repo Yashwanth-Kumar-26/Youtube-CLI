@@ -38,6 +38,8 @@ async def _download(url: str) -> pathlib.Path | None:
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
             cached.write_bytes(data)
             return cached
+    except asyncio.CancelledError:
+        raise
     except Exception:
         logger.debug("thumbnail download failed: %s", url, exc_info=True)
     return None
@@ -51,11 +53,15 @@ async def _fetch(url: str) -> bytes | None:
 
 
 def _clean_ansi(text: str) -> str:
-    """Strip CSI/OSC sequences that break Textual/Rich rendering."""
+    """Strip ANSI escape sequences that break Textual/Rich rendering."""
+    # cursor hide/show, save/restore, mode sequences
     text = text.replace("\x1b[?25l", "").replace("\x1b[?25h", "")
     text = re.sub(r"\x1b7|\x1b8", "", text)
     text = re.sub(r"\x1b\[\??[0-9;]*[hl]", "", text)
+    # reverse video (ESC[7m) — not supported by Rich, causes visual garbage
     text = re.sub(r"\x1b\[(?:[0-9;]*;)?7m|\x1b\[7(?:;[0-9;]*)?m", "", text)
+    # OSC (Operating System Command) sequences, e.g., ESC ] ... BEL or ESC \
+    text = re.sub(r"\x1b].*?(\x07|\x1b\\)", "", text, flags=re.DOTALL)
     return text
 
 
@@ -91,13 +97,18 @@ def _run_chafa_sync(img: pathlib.Path, width: int, height: int) -> str:
 async def render(url: str, width: int = WIDTH_DEF) -> str:
     """Return ANSI-art thumbnail string ready for ``Text.from_ansi()``."""
     if not url or not is_available():
+        logger.debug("thumbnail.render: no url or chafa not available")
         return ""
     try:
         img = await _download(url)
+        logger.debug(f"thumbnail.render: downloaded img={img}")
         if not img or not img.exists():
+            logger.debug("thumbnail.render: img not exist")
             return ""
         height = max(3, round(width * 9 / 16 / 2))
-        return _run_chafa_sync(img, width, height)
+        result = await asyncio.to_thread(_run_chafa_sync, img, width, height)
+        logger.debug(f"thumbnail.render: result length={len(result)}")
+        return result
     except asyncio.CancelledError:
         raise
     except Exception:

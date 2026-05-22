@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from typing import ClassVar
 
@@ -28,6 +29,8 @@ import yt_tui.player as player
 import yt_tui.search as search
 import yt_tui.thumbnail as thumbnail
 from yt_tui.utils import fmt_duration, fmt_views, HistoryManager
+
+logger = logging.getLogger(__name__)
 
 LOGO = """\
  ██╗   ██╗████████╗      ██████╗██╗     ██╗
@@ -360,16 +363,18 @@ class YtApp(App):
     def on_mount(self) -> None:
         table = self.query_one("#results", DataTable)
         table.add_columns("Title", "Channel", "Duration", "Views")
-        
+
         hist_table = self.query_one("#history-table", DataTable)
         hist_table.add_columns("Query", "Timestamp")
         self._refresh_history()
-        
+
         self.query_one("#search-bar", Input).focus()
 
     def _refresh_history(self) -> None:
         hist_table = self.query_one("#history-table", DataTable)
         hist_table.clear()
+        if self._incognito:
+            return
         for h in HistoryManager.get_search_history():
             hist_table.add_row(h["query"], h["timestamp"])
 
@@ -439,6 +444,7 @@ class YtApp(App):
             f"{fmt_views(r['views'])} views"
         )
         self.query_one("#thumb", Static).update("")
+        logger.info(f"handle_highlight: thumbnail URL: {r.get('thumbnail')}")
         if r.get("thumbnail"):
             self._fetch_thumb(r["thumbnail"])
 
@@ -448,8 +454,10 @@ class YtApp(App):
         from textual.content import Content
         thumb_widget = self.query_one("#thumb", Static)
         thumb_widget.update(Text("Loading thumbnail...", style="italic cyan"))
+        logger.debug(f"_fetch_thumb: url={url}")
 
         rendered = await thumbnail.render(url, width=38)
+        logger.debug(f"_fetch_thumb: rendered length={len(rendered)}")
         if rendered:
             thumb_widget.update(Content.from_rich_text(Text.from_ansi(rendered)))
         else:
@@ -491,7 +499,7 @@ class YtApp(App):
                         break
                     continue
 
-                async with self.app.suspend():
+                with self.app.suspend():
                     exit_code = await player.play_async(
                         item["url"],
                         audio_only=False,
@@ -558,4 +566,5 @@ class YtApp(App):
 
     def _set_status(self, msg: str) -> None:
         ap_status = "[green]AP:ON[/]" if self._autoplay else "[red]AP:OFF[/]"
-        self.query_one("#status", Static).update(f"{ap_status} | {msg}")
+        incog_status = "[yellow]INCOG[/]" if self._incognito else ""
+        self.query_one("#status", Static).update(f"{incog_status} {ap_status} | {msg}")

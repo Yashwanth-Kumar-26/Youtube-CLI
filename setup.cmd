@@ -27,10 +27,21 @@ if %errorlevel% neq 0 (
     echo        Thumbnails disabled.
 )
 
-:: 3. Global install
+:: 3. Python 3.10+
+echo.
+echo Resolving Python 3.10+ interpreter…
+for /f "usebackq delims=" %%I in (`uv python find 3.10 2^>nul`) do set "PYTHON_EXE=%%I"
+if not defined PYTHON_EXE (
+    echo [ERROR] Python 3.10+ not found.
+    echo         Install Python 3.10+ or run: uv python install 3.10
+    exit /b 1
+)
+echo ^> Python %PYTHON_EXE%
+
+:: 4. Global install
 echo.
 echo Globally installing yt-tui…
-uv tool install -e .
+uv tool install .
 
 echo.
 echo === Done ===

@@ -10,9 +10,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" /></a>
-  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/Textual-TUI-green?logo=terminal" /></a>
-  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/License-MIT-yellow?logo=law" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/yt-tui"><img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/yt-tui"><img src="https://img.shields.io/badge/Textual-TUI-green?logo=terminal" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/yt-tui"><img src="https://img.shields.io/badge/License-MIT-yellow?logo=law" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/yt-tui"><img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?logo=terminal" /></a>
 </p>
 
 ---
@@ -25,15 +26,16 @@
 - **Playlist Support** — auto-extract and list all videos from playlist links
 - **Playback Options** — Video or Audio-only mode per session
 - **Autoplay** — auto-advance through playlist tracks
+- **Incognito Mode** — run without saving search or watch history
 - **Asynchronous Thumbnails** — high-performance ANSI-art previews, non-blocking
 
 ## Requirements
 
-- Python 3.10+
-- [mpv](https://mpv.io/) — Video & Audio playback
-- [chafa](https://hpjansson.org/chafa/) — thumbnail rendering
+- **Python 3.10+**
+- **[mpv](https://mpv.io/)** — video & audio playback
+- **[chafa](https://hpjansson.org/chafa/)** — thumbnail rendering (optional — thumbnails silently skip if missing)
 
-### System Dependencies
+### Install System Dependencies
 
 ```bash
 # Fedora
@@ -52,64 +54,98 @@ brew install mpv chafa
 scoop install mpv chafa
 
 # Windows (Winget)
-winget install shinchiro.mpv Chafa
+winget install shinchiro.mpv chafa
 ```
 
 ## Installation
 
-Run `setup.sh` (Unix/Linux/macOS) or `setup.cmd` (Windows). Uses `uv` under the hood — installs `yt-tui` globally so it works from any directory.
+YT-TUI uses [uv](https://docs.astral.sh/uv/) (a fast Python package manager) to install itself as a **global tool** — works from any directory, no virtual environment activation needed.
 
 ### Unix/Linux/macOS
+
 ```bash
-git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
-cd Youtube-TUI
-chmod +x setup.sh 
+git clone https://github.com/Yashwanth-Kumar-26/yt-tui.git
+cd yt-tui
+chmod +x setup.sh
 ./setup.sh
 ```
 
 ### Windows
+
 ```cmd
-git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
-cd Youtube-TUI
-setup.cmd           
+git clone https://github.com/Yashwanth-Kumar-26/yt-tui.git
+cd yt-tui
+setup.cmd
 ```
+
+### Manual Install (any OS)
+
+If you already have `uv` installed:
+
+```bash
+cd yt-tui
+uv tool install .
+```
+
+> **Note:** The setup scripts automatically install `uv` if missing, resolve Python 3.10+, and install `yt-tui` as a global command.
 
 ## Usage
 
 ```bash
+# Normal mode — history is saved
 yt-tui
+
+# Incognito mode — no search/watch history saved
+yt-tui incog
 ```
 
-The TUI launches with the search bar focused. Type or paste a URL and press **Enter**.
+The TUI launches with the search bar focused. Type a keyword or paste a YouTube URL and press **Enter**.
+
+### Playback Flow
+
+1. Search results appear as a table
+2. Navigate with `↑` / `↓` — thumbnail preview updates live
+3. Press **Enter** on a video
+4. Choose **Video** or **Audio** mode
+5. mpv launches for playback
+6. Press `q` inside mpv to return to YT-TUI
+
+If autoplay is ON (toggle with `a`), the next video starts automatically when the current one ends.
 
 ## Keyboard Reference
 
 | Key | Action |
 |-----|--------|
-| `F1` | Help screen |
+| `F1` | Toggle help screen |
 | `/` | Focus search bar |
 | `s` | Switch to Search tab |
 | `h` | Switch to History tab |
-| `a` | Toggle Autoplay (ON/OFF) |
-| `↑ / ↓` | Navigate results |
-| `Enter` | Choose mode and play selected video |
+| `a` | Toggle Autoplay (ON / OFF) |
+| `↑` / `↓` | Navigate results |
+| `Enter` | Choose play mode and play selected video |
 | `Ctrl+Q` | Quit |
 
-**During mpv playback:**
+### mpv Playback Controls
 
 | Key | Action |
 |-----|--------|
 | `Space` | Pause / resume |
-| `← / →` | Seek backward / forward |
-| `↑ / ↓` | Volume up / down |
-| `q` | Stop and return to YT-TUI |
-
+| `←` / `→` | Seek backward / forward |
+| `↑` / `↓` | Volume up / down |
+| `q` | Stop playback and return to YT-TUI |
 
 ## Running Tests
 
 ```bash
-pip install pytest pytest-asyncio
+cd yt-tui
+pip install pytest
 pytest tests/ -v
+```
+
+Or via `uv`:
+```bash
+cd yt-tui
+uv run -- pytest tests/ -v
 ```
 
 ## Acknowledgement
@@ -120,6 +156,7 @@ YT-TUI is built on top of the incredible [yt-dlp](https://github.com/yt-dlp/yt-d
 
 - Uses `yt-dlp` for YouTube access — **no API key needed**
 - All user data stored in `~/.yt-tui/` as flat JSON
-- **Cross-Platform**: developed on Linux — Windows and macOS support experimental
-- **Thumbnails**: require a terminal with Unicode/ANSI support (Windows Terminal, iTerm2, modern Linux term). Silently skipped if tools missing
-- **Audio Mode**: mpv runs with `--no-video` flag to save bandwidth
+- **Cross-Platform**: tested on Linux, Windows, and macOS
+- **Thumbnails**: require a terminal with Unicode/ANSI support (Windows Terminal, iTerm2, modern Linux terminal). Silently disabled if `chafa` is not installed
+- **Audio Mode**: mpv runs with `--no-video` to save bandwidth
+- **Incognito Mode**: `yt-tui incog` skips all history writes for the session

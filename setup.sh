@@ -17,9 +17,9 @@ fi
 echo ">> uv $(uv --version)"
 
 # ── 2. Python ──────────────────────────────────────────────────
-UV_PY=$(uv python find || command -v python3 || command -v python)
+UV_PY=$(uv python find 3.10 || true)
 if [ -z "${UV_PY:-}" ]; then
-  echo "!! No usable Python found — install Python 3.10+ and retry."
+  echo "!! Python 3.10+ required — install it and retry."
   exit 1
 fi
 echo ">> Python ${UV_PY}"
@@ -64,7 +64,7 @@ fi
 
 # ── 4. Global install ─────────────────────────────────────────
 echo ">> Globally installing yt-tui…"
-uv tool install -e . --python "$UV_PY"
+uv tool install . --python "$UV_PY"
 
 # ── 5. Edge-cases: upgrade in-place if already present ────────
 if command -v yt-tui >/dev/null 2>&1; then

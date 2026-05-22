@@ -1,8 +1,11 @@
 import asyncio
+import logging
 import os
 import shutil
 import subprocess
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 def find_tool(name: str) -> str | None:
@@ -39,13 +42,14 @@ def play(url: str, audio_only: bool = False, ytdl_path: str | None = None) -> in
 
     cmd = [mpv_path, "--really-quiet"]
     if ytdl_path:
-        cmd.append(f'--script-opts=ytdl_hook-ytdl_path="{ytdl_path}"')
+        cmd.append(f"--script-opts=ytdl_hook-ytdl_path={ytdl_path}")
     
     cmd.append(url)
     
     if audio_only:
         cmd.append("--no-video")
 
+    print(f"Running mpv command: {' '.join(cmd)}", file=sys.stderr)
     result = subprocess.run(cmd)
     return result.returncode
 
@@ -58,7 +62,7 @@ async def play_async(url: str, audio_only: bool = False, ytdl_path: str | None =
 
     cmd = [mpv_path, "--really-quiet"]
     if ytdl_path:
-        cmd.append(f'--script-opts=ytdl_hook-ytdl_path="{ytdl_path}"')
+        cmd.append(f"--script-opts=ytdl_hook-ytdl_path={ytdl_path}")
 
     cmd.append(url)
 
@@ -67,12 +71,20 @@ async def play_async(url: str, audio_only: bool = False, ytdl_path: str | None =
 
     proc = await asyncio.create_subprocess_exec(
         *cmd,
-        stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     try:
-        return await proc.wait()
+        stdout, stderr = await proc.communicate()
     except asyncio.CancelledError:
         proc.kill()
         await proc.wait()
         raise
+
+    if proc.returncode != 0:
+        error_msg = f"mpv failed (returncode={proc.returncode}): {stderr.decode().strip()}"
+        logger.error(error_msg)
+        print(f"mpv command: {' '.join(cmd)}", file=sys.stderr)
+        print(error_msg, file=sys.stderr)
+
+    return proc.returncode
