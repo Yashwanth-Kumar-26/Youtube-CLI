@@ -49,7 +49,6 @@ def play(url: str, audio_only: bool = False, ytdl_path: str | None = None) -> in
     if audio_only:
         cmd.append("--no-video")
 
-    print(f"Running mpv command: {' '.join(cmd)}", file=sys.stderr)
     result = subprocess.run(cmd)
     return result.returncode
 
@@ -71,18 +70,18 @@ async def play_async(url: str, audio_only: bool = False, ytdl_path: str | None =
 
     proc = await asyncio.create_subprocess_exec(
         *cmd,
-        stdout=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.PIPE,
     )
     try:
-        stdout, stderr = await proc.communicate()
+        _, stderr = await proc.communicate()
     except asyncio.CancelledError:
         proc.kill()
         await proc.wait()
         raise
 
     if proc.returncode != 0:
-        error_msg = f"mpv failed (returncode={proc.returncode}): {stderr.decode().strip()}"
+        error_msg = f"mpv failed (returncode={proc.returncode}): {stderr.decode(errors='replace').strip()}"
         logger.error(error_msg)
         print(f"mpv command: {' '.join(cmd)}", file=sys.stderr)
         print(error_msg, file=sys.stderr)

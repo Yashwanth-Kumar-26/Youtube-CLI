@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 from typing import ClassVar
 
 from textual import on, work
@@ -444,7 +443,7 @@ class YtApp(App):
             f"{fmt_views(r['views'])} views"
         )
         self.query_one("#thumb", Static).update("")
-        logger.info(f"handle_highlight: thumbnail URL: {r.get('thumbnail')}")
+        logger.debug(f"handle_highlight: thumbnail URL: {r.get('thumbnail')}")
         if r.get("thumbnail"):
             self._fetch_thumb(r["thumbnail"])
 
@@ -566,5 +565,5 @@ class YtApp(App):
 
     def _set_status(self, msg: str) -> None:
         ap_status = "[green]AP:ON[/]" if self._autoplay else "[red]AP:OFF[/]"
-        incog_status = "[yellow]INCOG[/]" if self._incognito else ""
-        self.query_one("#status", Static).update(f"{incog_status} {ap_status} | {msg}")
+        incog_prefix = f"[yellow]INCOG[/] {ap_status}" if self._incognito else ap_status
+        self.query_one("#status", Static).update(f"{incog_prefix} | {msg}")
