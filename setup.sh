@@ -17,9 +17,9 @@ fi
 echo ">> uv $(uv --version)"
 
 # ── 2. Python ──────────────────────────────────────────────────
-UV_PY=$(uv python find || command -v python3 || command -v python)
+UV_PY=$(uv python find 3.10 || true)
 if [ -z "${UV_PY:-}" ]; then
-  echo "!! No usable Python found — install Python 3.10+ and retry."
+  echo "!! Python 3.10+ required — install it and retry."
   exit 1
 fi
 echo ">> Python ${UV_PY}"

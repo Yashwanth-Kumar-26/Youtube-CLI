@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" /></a>
-  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/Textual-TUI-green?logo=terminal" /></a>
-  <a href="https://github.com/Yashwanth-Kumar-26/Youtube-TUI"><img src="https://img.shields.io/badge/License-MIT-yellow?logo=law" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/yt-tui"><img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/yt-tui"><img src="https://img.shields.io/badge/Textual-TUI-green?logo=terminal" /></a>
+  <a href="https://github.com/Yashwanth-Kumar-26/yt-tui"><img src="https://img.shields.io/badge/License-MIT-yellow?logo=law" /></a>
 </p>
 
 ---
@@ -61,17 +61,17 @@ Run `setup.sh` (Unix/Linux/macOS) or `setup.cmd` (Windows). Uses `uv` under the 
 
 ### Unix/Linux/macOS
 ```bash
-git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
-cd Youtube-TUI
-chmod +x setup.sh 
+git clone https://github.com/Yashwanth-Kumar-26/yt-tui.git
+cd yt-tui
+chmod +x setup.sh
 ./setup.sh
 ```
 
 ### Windows
 ```cmd
-git clone https://github.com/Yashwanth-Kumar-26/Youtube-TUI.git
-cd Youtube-TUI
-setup.cmd           
+git clone https://github.com/Yashwanth-Kumar-26/yt-tui.git
+cd yt-tui
+setup.cmd
 ```
 
 ## Usage
