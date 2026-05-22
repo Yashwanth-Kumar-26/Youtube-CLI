@@ -83,7 +83,7 @@ echo ^> Python %PYTHON_EXE%
 :: ── 4. Global install ─────────────────────────────────────────
 echo.
 echo Globally installing yt-tui…
-uv tool install .
+uv tool install . --python "%PYTHON_EXE%"
 
 echo.
 echo === Done ===

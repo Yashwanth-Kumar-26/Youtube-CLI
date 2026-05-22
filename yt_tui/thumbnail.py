@@ -103,7 +103,7 @@ async def render(url: str, width: int = WIDTH_DEF) -> str:
         img = await _download(url)
         logger.debug(f"thumbnail.render: downloaded img={img}")
         if not img or not img.exists():
-            logger.debug("thumbnail.render: img not exist")
+            logger.debug("thumbnail.render: image does not exist")
             return ""
         height = max(3, round(width * 9 / 16 / 2))
         result = await asyncio.to_thread(_run_chafa_sync, img, width, height)

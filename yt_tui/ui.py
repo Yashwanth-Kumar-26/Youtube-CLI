@@ -565,5 +565,5 @@ class YtApp(App):
 
     def _set_status(self, msg: str) -> None:
         ap_status = "[green]AP:ON[/]" if self._autoplay else "[red]AP:OFF[/]"
-        incog_status = "[yellow]INCOG[/]" if self._incognito else ""
-        self.query_one("#status", Static).update(f"{incog_status} {ap_status} | {msg}")
+        incog_prefix = f"[yellow]INCOG[/] {ap_status}" if self._incognito else ap_status
+        self.query_one("#status", Static).update(f"{incog_prefix} | {msg}")
