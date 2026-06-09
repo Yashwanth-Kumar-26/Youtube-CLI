@@ -394,7 +394,7 @@ class YtApp(App):
     @work(thread=True)
     def _do_search(self, query: str) -> None:
         try:
-            results, is_playlist = search.search_youtube(query)
+            results, is_playlist = search.search_youtube(query, max_results=50)
         except Exception as exc:
             self.call_from_thread(self._handle_search_error, exc)
             return

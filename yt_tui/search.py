@@ -4,7 +4,7 @@ from __future__ import annotations
 import yt_dlp
 
 
-def search_youtube(query: str, max_results: int = 15) -> tuple[list[dict], bool]:
+def search_youtube(query: str, max_results: int = 50) -> tuple[list[dict], bool]:
     """Return up to *max_results* videos matching *query*.
     If *query* is a URL, it extracts that specific video or playlist.
 
