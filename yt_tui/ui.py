@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import pathlib
 from typing import ClassVar
 
 from textual import on, work
@@ -91,7 +92,7 @@ class PlaybackChoice(ModalScreen[bool | None]):
 
 
 class YtApp(App):
-    CSS_PATH = "ui.tcss"
+    CSS_PATH = pathlib.Path(__file__).parent / "ui.tcss"
 
     BINDINGS: ClassVar = [
         Binding("/", "focus_search", "Search", show=True),
@@ -285,37 +286,18 @@ class YtApp(App):
                         "views": item.views,
                     })
 
-                if self._audio_only_pref:
-                    # Audio: await each track before starting the next
-                    await self._play_audio_track(item.url, ytdl_path)
-                    self._set_status(f"Audio: {item.title}")
-                    if not self._autoplay:
-                        break
-                    continue
-
-                with self.app.suspend():
-                    exit_code = await player.play_async(
-                        item.url,
-                        audio_only=False,
-                        ytdl_path=ytdl_path
-                    )
-
-                if not self._autoplay or exit_code == 4:
+                await player.play_async(
+                    item.url,
+                    audio_only=self._audio_only_pref,
+                    ytdl_path=ytdl_path,
+                )
+                if not self._autoplay:
                     break
 
         except Exception as e:
             self._set_status(f"Playback error: {e}")
 
         self._set_status("Finished playback session")
-
-    async def _play_audio_track(self, url: str, ytdl_path: str | None) -> None:
-        """Play one audio track, awaiting mpv to finish (keeps TUI responsive)."""
-        try:
-            await player.play_async(url, audio_only=True, ytdl_path=ytdl_path)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            self._set_status("Audio playback failed")
 
 
     # ── Actions ───────────────────────────────────────────────────────────────
