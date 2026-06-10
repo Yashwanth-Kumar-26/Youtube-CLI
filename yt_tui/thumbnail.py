@@ -11,12 +11,24 @@ import subprocess
 
 import httpx
 
+from yt_tui import utils
+
 logger = logging.getLogger(__name__)
 
-CACHE_DIR = pathlib.Path.home() / ".cache" / "yt-tui" / "thumbnails"
+CACHE_DIR = utils.CACHE_DIR / "thumbnails"
 WIDTH_DEF = 38
 CHAFA_TIMEOUT = 8.0
 _HASH_LEN = 16
+
+# Shared httpx client (created lazily, reused across all thumbnail fetches)
+_http_client: httpx.AsyncClient | None = None
+
+
+async def _get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(follow_redirects=True, timeout=15.0)
+    return _http_client
 
 
 def is_available() -> bool:
@@ -46,10 +58,10 @@ async def _download(url: str) -> pathlib.Path | None:
 
 
 async def _fetch(url: str) -> bytes | None:
-    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
-        r = await client.get(url)
-        r.raise_for_status()
-        return r.content
+    client = await _get_http_client()
+    r = await client.get(url)
+    r.raise_for_status()
+    return r.content
 
 
 def _clean_ansi(text: str) -> str:
@@ -75,7 +87,7 @@ def _run_chafa_sync(img: pathlib.Path, width: int, height: int) -> str:
     ]
     try:
         cp = subprocess.run(
-            cargs, capture_output=True, text=True, timeout=CHAFA_TIMEOUT,
+            cargs, capture_output=True, encoding="utf-8", timeout=CHAFA_TIMEOUT,
         )
     except subprocess.TimeoutExpired:
         logger.warning("chafa timed-out")

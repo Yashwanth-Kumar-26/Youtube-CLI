@@ -55,6 +55,6 @@ debug.txt
 
 main1/
 
-# Settings (may contain credentials)
+# Settings
 settings/config.ini
 *.lock

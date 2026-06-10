@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from yt_tui.search import search_youtube
+from yt_tui.search import SearchResult, search_youtube
 
 
 FAKE_ENTRIES = [
@@ -48,10 +48,11 @@ def test_search_returns_results(mock_cls):
     mock_cls.return_value = _mock_ydl(FAKE_ENTRIES)
     results, is_playlist = search_youtube("linux tips", max_results=5)
     assert len(results) == 3
-    assert results[0]["id"] == "abc123"
-    assert results[0]["title"] == "Linux Tips"
-    assert results[0]["url"] == "https://www.youtube.com/watch?v=abc123"
-    assert results[1]["channel"] == "DevChannel"
+    assert isinstance(results[0], SearchResult)
+    assert results[0].id == "abc123"
+    assert results[0].title == "Linux Tips"
+    assert results[0].url == "https://www.youtube.com/watch?v=abc123"
+    assert results[1].channel == "DevChannel"
     assert is_playlist is False
 
 
@@ -61,11 +62,11 @@ def test_search_thumbnail_from_list(mock_cls):
     mock_cls.return_value = _mock_ydl(FAKE_ENTRIES)
     results, _ = search_youtube("test", max_results=5)
     # Entry 0 has direct thumbnail
-    assert results[0]["thumbnail"] == "https://img.youtube.com/vi/abc123/0.jpg"
+    assert results[0].thumbnail == "https://img.youtube.com/vi/abc123/0.jpg"
     # Entry 2 uses thumbnails list fallback
-    assert results[2]["thumbnail"] == "https://i.ytimg.com/vi/ghi789/hq720.jpg"
+    assert results[2].thumbnail == "https://i.ytimg.com/vi/ghi789/hq720.jpg"
     # Entry 1 has empty thumbnail
-    assert results[1]["thumbnail"] == ""
+    assert results[1].thumbnail == ""
 
 
 @patch("yt_tui.search.yt_dlp.YoutubeDL")
@@ -73,7 +74,7 @@ def test_search_skips_none_entries(mock_cls):
     mock_cls.return_value = _mock_ydl([None, FAKE_ENTRIES[0]])
     results, is_playlist = search_youtube("test")
     assert len(results) == 1
-    assert results[0]["id"] == "abc123"
+    assert results[0].id == "abc123"
     assert is_playlist is False
 
 

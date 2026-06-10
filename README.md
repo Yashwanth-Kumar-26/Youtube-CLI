@@ -61,6 +61,8 @@ winget install shinchiro.mpv chafa
 
 YT-TUI uses [uv](https://docs.astral.sh/uv/) (a fast Python package manager) to install itself as a **global tool** — works from any directory, no virtual environment activation needed.
 
+> **Quickest way:** Run the setup script for your OS — it installs everything and prompts you to choose your preferred download quality (video resolution + audio bitrate). Skip the prompt to keep the defaults.
+
 ### Unix/Linux/macOS
 
 ```bash
@@ -80,14 +82,14 @@ setup.cmd
 
 ### Manual Install (any OS)
 
-If you already have `uv` installed:
+If you already have `uv` installed and want to skip the quality prompt:
 
 ```bash
 cd yt-tui
 uv tool install .
 ```
 
-> **Note:** The setup scripts automatically install `uv` if missing, resolve Python 3.10+, and install `yt-tui` as a global command.
+> **Note:** The setup scripts automatically install `uv` if missing, resolve Python 3.10+, install system deps (`mpv`, `chafa`), install `yt-tui` globally, and prompt you to configure download quality.
 
 ## Usage
 
@@ -160,3 +162,82 @@ YT-TUI is built on top of the incredible [yt-dlp](https://github.com/yt-dlp/yt-d
 - **Thumbnails**: require a terminal with Unicode/ANSI support (Windows Terminal, iTerm2, modern Linux terminal). Silently disabled if `chafa` is not installed
 - **Audio Mode**: mpv runs with `--no-video` to save bandwidth
 - **Incognito Mode**: `yt-tui incog` skips all history writes for the session
+
+## Download Quality
+
+YT-TUI uses different format strings for **Video** and **Audio** playback modes. Both are configurable independently via env vars.
+
+### Defaults
+
+| Mode | Format String | Meaning |
+|------|-------------|---------|
+| **Video** | `bestvideo[height<=1080]+bestaudio/bestvideo+bestaudio/best` | 1080p video + best audio, falls back to best available |
+| **Audio** | `bestaudio/best` | Highest quality audio stream only (no video data wasted) |
+
+### Configuration
+
+The **setup scripts** (`setup.sh` / `setup.cmd`) prompt you to pick separate **video resolution** and **audio bitrate** during installation. These values get combined into a single `YT_TUI_QUALITY` env var, which is used for both modes — audio-only mode automatically strips the video part.
+
+### Video Quality Options
+
+| Preset | Height Cap | Format Part |
+|--------|-----------|-------------|
+| 4K      | 2160p | `bestvideo[height<=2160]` |
+| 1440p   | 1440p | `bestvideo[height<=1440]` |
+| 1080p   | 1080p | `bestvideo[height<=1080]` |
+| 720p    | 720p  | `bestvideo[height<=720]`  |
+| 480p    | 480p  | `bestvideo[height<=480]`  |
+| 360p    | 360p  | `bestvideo[height<=360]`  |
+| Best    | no cap | `bestvideo` |
+
+### Audio Quality Options
+
+| Preset | Bitrate Cap | Format Part |
+|--------|-----------|-------------|
+| 320 kbps | 320 | `bestaudio[abr<=320]` |
+| 256 kbps | 256 | `bestaudio[abr<=256]` |
+| 192 kbps | 192 | `bestaudio[abr<=192]` |
+| 128 kbps | 128 | `bestaudio[abr<=128]` |
+| Best     | no cap | `bestaudio` |
+
+### How Audio-Only Mode Works
+
+When you select **Audio** in the TUI, YT-TUI builds a format string that only requests audio streams — no video data is downloaded:
+
+- If `YT_TUI_AUDIO_BITRATE` is set (e.g. `320`): `bestaudio[abr<=320]/bestaudio/best`
+- Otherwise: `bestaudio/best`
+
+This means your audio bitrate preference is honored in *both* Video and Audio modes, but Audio mode doesn't waste bandwidth downloading video.
+
+### Fallback Behavior
+
+The Video mode format includes a fallback chain. For example, if you pick **4K video + 320 kbps audio**:
+```
+bestvideo[height<=2160]+bestaudio[abr<=320]/bestvideo+bestaudio/best
+```
+
+1. Try your chosen combo (e.g. 2160p video + 320kbps audio)
+2. If unavailable, try best video + best audio (uncapped)
+3. If still fails, pick the best single stream that works
+
+### Manual Override
+
+After install, change quality anytime via the `YT_TUI_QUALITY` env var:
+
+```bash
+# 720p + 192kbps
+export YT_TUI_QUALITY="bestvideo[height<=720]+bestaudio[abr<=192]/bestvideo+bestaudio/best"
+yt-tui
+
+# Best video + 320kbps audio
+export YT_TUI_QUALITY="bestvideo+bestaudio[abr<=320]/bestvideo+bestaudio/best"
+yt-tui
+
+# Best available (no limits at all)
+export YT_TUI_QUALITY="bestvideo+bestaudio/best"
+yt-tui
+```
+
+To persist:
+- **Linux/macOS**: edit `YT_TUI_QUALITY` in `~/.bashrc`, `~/.zshrc`, or `~/.profile`
+- **Windows**: run `setx YT_TUI_QUALITY "format-string"` (then restart terminal)

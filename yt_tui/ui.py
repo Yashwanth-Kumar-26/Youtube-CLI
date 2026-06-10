@@ -27,6 +27,7 @@ from textual.widgets import (
 import yt_tui.player as player
 import yt_tui.search as search
 import yt_tui.thumbnail as thumbnail
+from yt_tui.search import SearchResult
 from yt_tui.utils import fmt_duration, fmt_views, HistoryManager
 
 logger = logging.getLogger(__name__)
@@ -90,224 +91,7 @@ class PlaybackChoice(ModalScreen[bool | None]):
 
 
 class YtApp(App):
-    CSS = """
-    $accent-primary: #FF2D2D;
-    $accent-secondary: #f5c2e7;
-    $accent-green: #a6e3a1;
-    $bg-main: #1e1e2e;
-    $bg-sidebar: #181825;
-    $bg-surface: #232336;
-    $fg-main: #cdd6f4;
-    $fg-muted: #7f849c;
-    $border-dim: #313244;
-
-    Screen {
-        background: $bg-main;
-        color: $fg-main;
-    }
-
-    #sidebar {
-        width: 25;
-        background: $bg-sidebar;
-        border-right: solid #313244;
-        dock: left;
-    }
-
-    #sidebar-logo {
-        height: 6;
-        content-align: center middle;
-        color: $accent-primary;
-        text-style: bold;
-        border-bottom: solid $border-dim;
-    }
-
-    #nav-list {
-        background: transparent;
-        border: none;
-    }
-
-    #nav-list ListItem {
-        padding: 1 2;
-        border-left: solid $bg-sidebar;
-    }
-
-    #nav-list ListItem:hover {
-        background: $border-dim;
-        border-left: solid $accent-primary;
-    }
-
-    #nav-list ListItem.--highlight {
-        background: $accent-primary;
-        color: $bg-main;
-        text-style: bold;
-        border-left: solid $accent-primary;
-    }
-
-    #content {
-        height: 1fr;
-    }
-
-    #search, #history {
-        height: 1fr;
-    }
-
-    #search {
-        border: solid $border-dim;
-        height: 1fr;
-    }
-
-    #history {
-        border: solid $border-dim;
-        height: 1fr;
-    }
-
-    #search-header {
-        height: 3;
-        padding: 0 1;
-        margin-bottom: 1;
-    }
-
-    #search-bar {
-        border: solid $border-dim;
-    }
-
-    #search-bar:focus {
-        border: solid $accent-primary;
-    }
-
-    #results-container {
-        height: 1fr;
-    }
-
-    #results {
-        border: none;
-        background: transparent;
-    }
-
-    #results > .datatable--header {
-        background: $bg-surface;
-        color: $accent-primary;
-        text-style: bold;
-    }
-
-    #results > .datatable--line {
-        padding: 0 1;
-    }
-
-    #info-panel {
-        width: 44;
-        border-left: solid $border-dim;
-        padding: 1 2;
-        background: $bg-sidebar;
-    }
-
-    #thumb {
-        height: 12;
-        width: 100%;
-        margin-bottom: 1;
-        border: solid $accent-primary;
-        content-align: center middle;
-        overflow: hidden;
-    }
-
-    #info-title {
-        text-style: bold;
-        color: $accent-secondary;
-        margin-bottom: 1;
-        border-bottom: solid $border-dim;
-        padding-bottom: 1;
-    }
-
-    #status {
-        dock: bottom;
-        height: 1;
-        background: $accent-primary;
-        color: $bg-main;
-        padding: 0 1;
-        text-style: bold;
-    }
-
-    #loading-overlay {
-        width: 100%;
-        height: 100%;
-        content-align: center middle;
-        background: rgba(30, 30, 46, 0.8);
-        display: none;
-    }
-
-    #loading-overlay.visible {
-        display: block;
-    }
-
-    LoadingIndicator {
-        color: $accent-primary;
-    }
-
-    HelpScreen > Static {
-        background: $bg-sidebar;
-        border: double $accent-primary;
-        width: 60;
-        height: auto;
-        padding: 1 2;
-    }
-
-    #choice-dialog {
-        background: $bg-sidebar;
-        border: thick $accent-primary;
-        width: 40;
-        height: auto;
-        padding: 1 2;
-    }
-
-    #choice-title {
-        text-style: bold;
-        color: $accent-secondary;
-        content-align: center middle;
-        padding: 1 0;
-    }
-
-    #choice-buttons {
-        align: center middle;
-        padding: 1 0;
-    }
-
-    #choice-buttons Button {
-        margin: 0 1;
-    }
-
-    #choice-hint {
-        color: $fg-muted;
-        content-align: center middle;
-    }
-
-    .section-title {
-        text-style: bold;
-        color: $accent-primary;
-        padding: 1 2;
-        background: $bg-surface;
-        width: 100%;
-    }
-
-    #history-table {
-        border: none;
-        background: transparent;
-    }
-
-    #history-table > .datatable--header {
-        background: $bg-surface;
-        color: $accent-primary;
-        text-style: bold;
-    }
-
-    /* ── Scrollbar ──────────────────────────────────────────── */
-    * > .scrollbar {
-        color: $accent-primary;
-    }
-
-    * > .scrollbar-track {
-        color: $border-dim;
-    }
-    """
+    CSS_PATH = "ui.tcss"
 
     BINDINGS: ClassVar = [
         Binding("/", "focus_search", "Search", show=True),
@@ -322,7 +106,7 @@ class YtApp(App):
     def __init__(self, incognito: bool = False) -> None:
         super().__init__()
         self._incognito = incognito
-        self._results: list[dict] = []
+        self._results: list[SearchResult] = []
         self._current_thumb_task: asyncio.Task | None = None
         self._autoplay: bool = False
         self._is_playlist_mode: bool = False
@@ -379,17 +163,21 @@ class YtApp(App):
 
     # ── Search ────────────────────────────────────────────────────────────────
 
-    @on(Input.Submitted, "#search-bar")
-    def handle_search(self, event: Input.Submitted) -> None:
-        query = event.value.strip()
-        if not query:
-            return
+    def _execute_search(self, query: str) -> None:
+        """Initiate a search for the given query string."""
         if not self._incognito:
             HistoryManager.add_search(query)
         self._refresh_history()
         self.query_one("#loading-overlay").add_class("visible")
         self._set_status(f"Searching: {query}…")
         self._do_search(query)
+
+    @on(Input.Submitted, "#search-bar")
+    def handle_search(self, event: Input.Submitted) -> None:
+        query = event.value.strip()
+        if not query:
+            return
+        self._execute_search(query)
 
     @work(thread=True)
     def _do_search(self, query: str) -> None:
@@ -404,14 +192,14 @@ class YtApp(App):
         self.query_one("#loading-overlay").remove_class("visible")
         self._set_status(f"Search error: {exc}")
 
-    def _populate_results(self, results: list[dict], is_playlist: bool) -> None:
+    def _populate_results(self, results: list[SearchResult], is_playlist: bool) -> None:
         self.query_one("#loading-overlay").remove_class("visible")
         self._results = results
         self._is_playlist_mode = is_playlist
         if is_playlist and not self._autoplay:
             self._autoplay = True
             self._set_status("Playlist loaded — Autoplay ON")
-        
+
         table = self.query_one("#results", DataTable)
         table.clear()
         if not results:
@@ -419,10 +207,10 @@ class YtApp(App):
             return
         for r in results:
             table.add_row(
-                r["title"][:60],
-                r["channel"][:30],
-                fmt_duration(r["duration"]),
-                fmt_views(r["views"]),
+                r.title[:60],
+                r.channel[:30],
+                fmt_duration(r.duration),
+                fmt_views(r.views),
             )
         self._set_status(f"{len(results)} results")
         table.focus()
@@ -436,16 +224,16 @@ class YtApp(App):
         if idx < 0 or idx >= len(self._results):
             return
         r = self._results[idx]
-        self.query_one("#info-title", Label).update(r["title"])
+        self.query_one("#info-title", Label).update(r.title)
         self.query_one("#info-meta", Label).update(
-            f"[cyan]{r['channel']}[/cyan]  "
-            f"[yellow]{fmt_duration(r['duration'])}[/yellow]  "
-            f"{fmt_views(r['views'])} views"
+            f"[cyan]{r.channel}[/cyan]  "
+            f"[yellow]{fmt_duration(r.duration)}[/yellow]  "
+            f"{fmt_views(r.views)} views"
         )
         self.query_one("#thumb", Static).update("")
-        logger.debug(f"handle_highlight: thumbnail URL: {r.get('thumbnail')}")
-        if r.get("thumbnail"):
-            self._fetch_thumb(r["thumbnail"])
+        logger.debug(f"handle_highlight: thumbnail URL: {r.thumbnail}")
+        if r.thumbnail:
+            self._fetch_thumb(r.thumbnail)
 
     @work(exclusive=True)
     async def _fetch_thumb(self, url: str) -> None:
@@ -486,21 +274,28 @@ class YtApp(App):
             for i in range(start_idx, len(self._results)):
                 item = self._results[i]
                 table.move_cursor(row=i)
-                self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item['title']}")
+                self._set_status(f"Playing [{i+1}/{len(self._results)}]: {item.title}")
                 if not self._incognito:
-                    HistoryManager.add_watch(item)
+                    HistoryManager.add_watch({
+                        "id": item.id,
+                        "title": item.title,
+                        "channel": item.channel,
+                        "url": item.url,
+                        "duration": item.duration,
+                        "views": item.views,
+                    })
 
                 if self._audio_only_pref:
                     # Audio: await each track before starting the next
-                    await self._play_audio_track(item["url"], ytdl_path)
-                    self._set_status(f"Audio: {item['title']}")
+                    await self._play_audio_track(item.url, ytdl_path)
+                    self._set_status(f"Audio: {item.title}")
                     if not self._autoplay:
                         break
                     continue
 
                 with self.app.suspend():
                     exit_code = await player.play_async(
-                        item["url"],
+                        item.url,
                         audio_only=False,
                         ytdl_path=ytdl_path
                     )
@@ -556,10 +351,10 @@ class YtApp(App):
     @on(DataTable.RowSelected, "#history-table")
     def handle_history_select(self, event: DataTable.RowSelected) -> None:
         row_data = self.query_one("#history-table", DataTable).get_row_at(event.cursor_row)
-        query = row_data[0]
-        self.query_one("#search-bar", Input).value = str(query)
+        query = str(row_data[0])
+        self.query_one("#search-bar", Input).value = query
         self.action_switch_view("search")
-        self.handle_search(Input.Submitted(self.query_one("#search-bar", Input), str(query)))
+        self._execute_search(query)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

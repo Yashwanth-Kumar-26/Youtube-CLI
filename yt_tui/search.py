@@ -1,10 +1,30 @@
 """YouTube search via yt-dlp — no API key required."""
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import Any
+
 import yt_dlp
 
 
-def search_youtube(query: str, max_results: int = 50) -> tuple[list[dict], bool]:
+@dataclass
+class SearchResult:
+    """A single video or playlist entry from YouTube search.
+
+    All callers should use these typed fields rather than raw dict keys.
+    """
+    id: str
+    title: str
+    channel: str
+    duration: int | None = None
+    views: int | None = None
+    url: str = ""
+    thumbnail: str = ""
+    # Arbitrary extra metadata from yt-dlp (future-proofing)
+    extra: dict[str, Any] = field(default_factory=dict)
+
+
+def search_youtube(query: str, max_results: int = 50) -> tuple[list[SearchResult], bool]:
     """Return up to *max_results* videos matching *query*.
     If *query* is a URL, it extracts that specific video or playlist.
 
@@ -16,10 +36,10 @@ def search_youtube(query: str, max_results: int = 50) -> tuple[list[dict], bool]
         "extract_flat": "in_playlist",
         "skip_download": True,
     }
-    
+
     # Logic to handle direct URLs or search queries
     source = query if query.startswith(("http://", "https://")) else f"ytsearch{max_results}:{query}"
-    
+
     with yt_dlp.YoutubeDL(opts) as ydl:
         try:
             info = ydl.extract_info(source, download=False)
@@ -30,13 +50,13 @@ def search_youtube(query: str, max_results: int = 50) -> tuple[list[dict], bool]
             return [], False
 
         is_playlist = info.get("_type") == "playlist"
-    
+
     if "entries" in info:
         entries = info["entries"]
     else:
         entries = [info]
 
-    results: list[dict] = []
+    results: list[SearchResult] = []
     for e in entries:
         if not e:
             continue
@@ -50,15 +70,19 @@ def search_youtube(query: str, max_results: int = 50) -> tuple[list[dict], bool]
             thumb = thumbs[-1].get("url", "") if thumbs else ""
 
         results.append(
-            {
-                "id": vid_id,
-                "title": e.get("title") or "Unknown",
-                "channel": e.get("uploader") or e.get("channel") or "Unknown",
-                "duration": e.get("duration"),
-                "views": e.get("view_count"),
-                "url": f"https://www.youtube.com/watch?v={vid_id}",
-                "thumbnail": thumb,
-            }
+            SearchResult(
+                id=vid_id,
+                title=e.get("title") or "Unknown",
+                channel=e.get("uploader") or e.get("channel") or "Unknown",
+                duration=e.get("duration"),
+                views=e.get("view_count"),
+                url=f"https://www.youtube.com/watch?v={vid_id}",
+                thumbnail=thumb,
+                extra={k: v for k, v in e.items() if k not in (
+                    "id", "title", "uploader", "channel", "duration",
+                    "view_count", "url", "thumbnail", "thumbnails",
+                )},
+            )
         )
     return results, is_playlist
 
