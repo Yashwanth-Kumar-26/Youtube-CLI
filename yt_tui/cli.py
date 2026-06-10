@@ -44,5 +44,13 @@ def main() -> None:
     YtApp(incognito=incognito).run()
 
 
+def incog_main() -> None:
+    """Entry point for the ``yt-incog`` command — always runs incognito."""
+    _check_python()
+    from yt_tui.ui import YtApp
+
+    YtApp(incognito=True).run()
+
+
 if __name__ == "__main__":
     main()

@@ -41,7 +41,8 @@ def test_play_bad_exit_returns_code(mock_run, mock_which):
     assert exit_code == 1
 
 
+@patch("yt_tui.player._ensure_mpv", side_effect=RuntimeError("download failed"))
 @patch("yt_tui.player.shutil.which", return_value=None)
-def test_play_no_mpv_raises_runtime_error(mock_which):
+def test_play_no_mpv_raises_runtime_error(mock_which, mock_dl):
     with pytest.raises(RuntimeError, match="mpv not found"):
         play("https://www.youtube.com/watch?v=abc123")

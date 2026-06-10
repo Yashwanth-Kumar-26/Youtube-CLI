@@ -18,6 +18,26 @@
 
 ---
 
+## Quick Install (from PyPI)
+
+```bash
+pip install yt-tui
+yt-tui
+```
+
+> **mpv is auto-downloaded** on first run if not found — no manual installation needed.
+>
+> Optional: [chafa](https://hpjansson.org/chafa/) for thumbnail previews (install via system package manager).
+
+### Or use uv (faster)
+
+```bash
+uv tool install yt-tui
+yt-tui
+```
+
+---
+
 ## Features
 
 - **Universal Search** — keywords or direct YouTube video/playlist URLs
@@ -99,6 +119,9 @@ yt-tui
 
 # Incognito mode — no search/watch history saved
 yt-tui incog
+
+# Or use the shortcut command (same as above)
+yt-incog
 ```
 
 The TUI launches with the search bar focused. Type a keyword or paste a YouTube URL and press **Enter**.
@@ -241,3 +264,20 @@ yt-tui
 To persist:
 - **Linux/macOS**: edit `YT_TUI_QUALITY` in `~/.bashrc`, `~/.zshrc`, or `~/.profile`
 - **Windows**: run `setx YT_TUI_QUALITY "format-string"` (then restart terminal)
+
+## Publishing to PyPI
+
+To publish a new release:
+
+```bash
+# Install build tools
+pip install build twine
+
+# Build
+python -m build
+
+# Upload to PyPI
+twine upload dist/*
+```
+
+Requires a [PyPI account](https://pypi.org/account/register/) and API token. The package is pure Python (`py3-none-any` wheel) and includes `ui.tcss` automatically. Before publishing, bump the version in `yt_tui/__init__.py` and `pyproject.toml`.

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import pathlib
 from typing import ClassVar
 
 from textual import on, work
@@ -91,7 +92,7 @@ class PlaybackChoice(ModalScreen[bool | None]):
 
 
 class YtApp(App):
-    CSS_PATH = "ui.tcss"
+    CSS_PATH = pathlib.Path(__file__).parent / "ui.tcss"
 
     BINDINGS: ClassVar = [
         Binding("/", "focus_search", "Search", show=True),
@@ -140,7 +141,7 @@ class YtApp(App):
                         yield Label("Search History", classes="section-title")
                         yield DataTable(id="history-table", cursor_type="row", zebra_stripes=True)
 
-        yield Static("Ready", id="status")
+        yield Static("[red]AP:OFF[/] | Ready", id="status")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -152,6 +153,10 @@ class YtApp(App):
         self._refresh_history()
 
         self.query_one("#search-bar", Input).focus()
+
+        # Check system dependencies at startup — auto-downloads mpv if missing
+        if not player.find_tool("mpv"):
+            self._set_status("[red]mpv not found![/] Could not auto-download. See https://mpv.io/installation/")
 
     def _refresh_history(self) -> None:
         hist_table = self.query_one("#history-table", DataTable)
@@ -285,44 +290,37 @@ class YtApp(App):
                         "views": item.views,
                     })
 
-                if self._audio_only_pref:
-                    # Audio: await each track before starting the next
-                    await self._play_audio_track(item.url, ytdl_path)
-                    self._set_status(f"Audio: {item.title}")
-                    if not self._autoplay:
-                        break
-                    continue
-
-                with self.app.suspend():
-                    exit_code = await player.play_async(
-                        item.url,
-                        audio_only=False,
-                        ytdl_path=ytdl_path
-                    )
-
-                if not self._autoplay or exit_code == 4:
+                await player.play_async(
+                    item.url,
+                    audio_only=self._audio_only_pref,
+                    ytdl_path=ytdl_path,
+                )
+                if not self._autoplay:
                     break
 
+        except RuntimeError as e:
+            if "mpv not found" in str(e):
+                self._set_status("[red]mpv not found![/] Could not auto-download. See https://mpv.io/installation/")
+            else:
+                self._set_status(f"Playback error: {e}")
         except Exception as e:
             self._set_status(f"Playback error: {e}")
 
         self._set_status("Finished playback session")
-
-    async def _play_audio_track(self, url: str, ytdl_path: str | None) -> None:
-        """Play one audio track, awaiting mpv to finish (keeps TUI responsive)."""
-        try:
-            await player.play_async(url, audio_only=True, ytdl_path=ytdl_path)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            self._set_status("Audio playback failed")
 
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
     def action_toggle_autoplay(self) -> None:
         self._autoplay = not self._autoplay
-        self._set_status(f"Autoplay: {'ON' if self._autoplay else 'OFF'}")
+        state = "ON" if self._autoplay else "OFF"
+        self._set_status(f"Autoplay: {state}")
+        self.notify(
+            f"Autoplay {state}",
+            title="⏭ Toggle",
+            severity="information" if self._autoplay else "warning",
+            timeout=2,
+        )
 
     def action_focus_search(self) -> None:
         self.action_switch_view("search")
